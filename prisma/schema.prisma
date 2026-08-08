@@ -1,0 +1,138 @@
+// POS SKY HAUS - Database Schema
+// Using PostgreSQL with Prisma ORM
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER & AUTHENTICATION
+// ============================================
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String   // bcrypt hashed
+  role      Role     @default(CASHIER)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions Transaction[]
+
+  @@map("users")
+}
+
+enum Role {
+  ADMIN
+  CASHIER
+}
+
+// ============================================
+// PRODUCT & CATEGORY
+// ============================================
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id         String  @id @default(cuid())
+  name       String
+  sku        String? @unique
+  price      Int     // Harga dalam Rupiah (integer)
+  stock      Int     @default(0)
+  lowStock   Int     @default(5) // Ambang batas stok tipis
+  image      String? // URL/path gambar produk
+  isActive   Boolean @default(true)
+  categoryId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  category         Category          @relation(fields: [categoryId], references: [id])
+  transactionItems TransactionItem[]
+
+  @@map("products")
+}
+
+// ============================================
+// TRANSACTION
+// ============================================
+
+model Transaction {
+  id            String            @id @default(cuid())
+  invoiceNo     String            @unique // Format: INV-YYYYMMDD-XXXX
+  subtotal      Int
+  taxRate       Float             @default(0) // Persentase pajak saat transaksi
+  taxAmount     Int               @default(0)
+  grandTotal    Int
+  paymentMethod PaymentMethod
+  cashReceived  Int?              // Untuk pembayaran tunai
+  changeAmount  Int?              // Kembalian
+  status        TransactionStatus @default(COMPLETED)
+  note          String?
+  userId        String
+
+  createdAt DateTime @default(now())
+
+  user  User              @relation(fields: [userId], references: [id])
+  items TransactionItem[]
+
+  @@map("transactions")
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  QRIS
+}
+
+enum TransactionStatus {
+  COMPLETED
+  VOIDED
+}
+
+model TransactionItem {
+  id          String @id @default(cuid())
+  quantity    Int
+  unitPrice   Int    // Harga satuan saat transaksi (snapshot)
+  subtotal    Int    // quantity * unitPrice
+  productName String // Snapshot nama produk saat transaksi
+  transactionId String
+  productId     String
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  product     Product     @relation(fields: [productId], references: [id])
+
+  @@map("transaction_items")
+}
+
+// ============================================
+// STORE SETTINGS
+// ============================================
+
+model StoreSetting {
+  id            String  @id @default(cuid())
+  storeName     String  @default("SKY HAUS")
+  address       String? @default("Jl. Lapas, Kec. Jati Agung, Lampung")
+  phone         String? @default("0857-1952-1461")
+  taxRate       Float   @default(0) // Persentase pajak default (0 = tidak ada pajak)
+  qrisImage     String? // Path ke gambar QRIS
+  receiptFooter String? @default("Terima Kasih Atas Kunjungan Anda!")
+
+  @@map("store_settings")
+}
