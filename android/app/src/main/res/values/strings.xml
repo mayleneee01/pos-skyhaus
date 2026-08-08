@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">SKY HAUS POS</string>
-    <string name="title_activity_main">SKY HAUS POS</string>
-    <string name="package_name">com.skyhaus.pos</string>
-    <string name="custom_url_scheme">com.skyhaus.pos</string>
-</resources>

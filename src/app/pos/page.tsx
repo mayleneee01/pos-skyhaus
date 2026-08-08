@@ -3,9 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { formatRupiah } from '@/lib/utils';
-import { History, ShoppingCart, CreditCard, Banknote, Building, Smartphone, AlertTriangle, CheckCircle, Printer } from 'lucide-react';
-import { canUseBluetooth, printReceipt } from '@/lib/bluetoothPrinter';
-import PrinterSelector from '@/components/PrinterSelector';
+import { History, ShoppingCart, CreditCard, Banknote, Building, Smartphone, AlertTriangle, CheckCircle, Printer, LayoutDashboard } from 'lucide-react';
+import FullscreenToggle from '@/components/FullscreenToggle';
 import type { ProductWithCategory, CartItem, StoreSettingData, CreateTransactionPayload, TransactionWithDetails } from '@/types';
 
 export default function POSPage() {
@@ -208,14 +207,24 @@ export default function POSPage() {
               <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>Point of Sale</p>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
             <button
               className="btn btn-secondary btn-sm"
               onClick={() => { fetchTodayTransactions(); setShowHistory(true); }}
             >
               <History size={16} /> Riwayat
             </button>
-            <PrinterSelector />
+            <FullscreenToggle />
+            {(session?.user as any)?.role === 'ADMIN' && (
+              <a href="/admin" className="btn btn-sm" style={{
+                display: 'flex', alignItems: 'center', gap: '4px',
+                background: 'var(--color-primary-bg)', color: 'var(--color-primary)',
+                border: '1px solid var(--color-primary)', borderRadius: 'var(--radius-sm)',
+                fontSize: 'var(--text-xs)', fontWeight: 600, padding: '6px 10px', textDecoration: 'none',
+              }}>
+                <LayoutDashboard size={14} /> Admin
+              </a>
+            )}
             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>
               {session?.user?.name}
             </span>
@@ -579,40 +588,7 @@ export default function POSPage() {
               <button className="btn btn-secondary" onClick={() => setShowReceipt(false)}>
                 Tutup
               </button>
-              <button className="btn btn-primary" onClick={async () => {
-                if (lastTransaction && settings && canUseBluetooth()) {
-                  try {
-                    await printReceipt({
-                      storeName: settings.storeName || 'SKY HAUS',
-                      address: settings.address || '',
-                      phone: settings.phone || '',
-                      invoiceNo: lastTransaction.invoiceNo,
-                      cashierName: lastTransaction.user?.name || '',
-                      date: new Date(lastTransaction.createdAt).toLocaleDateString('id-ID'),
-                      time: new Date(lastTransaction.createdAt).toLocaleTimeString('id-ID'),
-                      items: lastTransaction.items.map(item => ({
-                        name: item.productName,
-                        quantity: item.quantity,
-                        unitPrice: item.unitPrice,
-                        subtotal: item.subtotal,
-                      })),
-                      subtotal: lastTransaction.subtotal,
-                      taxRate: lastTransaction.taxRate,
-                      taxAmount: lastTransaction.taxAmount,
-                      grandTotal: lastTransaction.grandTotal,
-                      paymentMethod: lastTransaction.paymentMethod,
-                      cashReceived: lastTransaction.cashReceived ?? undefined,
-                      changeAmount: lastTransaction.changeAmount ?? undefined,
-                      footer: settings.receiptFooter || 'Terima Kasih!',
-                    });
-                  } catch (err: any) {
-                    alert('Gagal cetak BT: ' + err.message);
-                    window.print();
-                  }
-                } else {
-                  window.print();
-                }
-              }}>
+              <button className="btn btn-primary" onClick={() => window.print()}>
                 <Printer size={16} /> Cetak Struk
               </button>
             </div>
