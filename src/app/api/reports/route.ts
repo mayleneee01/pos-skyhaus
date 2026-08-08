@@ -48,9 +48,18 @@ export async function GET(request: NextRequest) {
     const avgTransaction = totalTransactions > 0 ? Math.round(totalRevenue / totalTransactions) : 0;
 
     const paymentBreakdown = {
-      CASH: transactions.filter(t => t.paymentMethod === 'CASH').reduce((sum, t) => sum + t.grandTotal, 0),
-      TRANSFER: transactions.filter(t => t.paymentMethod === 'TRANSFER').reduce((sum, t) => sum + t.grandTotal, 0),
-      QRIS: transactions.filter(t => t.paymentMethod === 'QRIS').reduce((sum, t) => sum + t.grandTotal, 0),
+      CASH: {
+        amount: transactions.filter(t => t.paymentMethod === 'CASH').reduce((sum, t) => sum + t.grandTotal, 0),
+        count: transactions.filter(t => t.paymentMethod === 'CASH').length
+      },
+      TRANSFER: {
+        amount: transactions.filter(t => t.paymentMethod === 'TRANSFER').reduce((sum, t) => sum + t.grandTotal, 0),
+        count: transactions.filter(t => t.paymentMethod === 'TRANSFER').length
+      },
+      QRIS: {
+        amount: transactions.filter(t => t.paymentMethod === 'QRIS').reduce((sum, t) => sum + t.grandTotal, 0),
+        count: transactions.filter(t => t.paymentMethod === 'QRIS').length
+      },
     };
 
     return NextResponse.json({

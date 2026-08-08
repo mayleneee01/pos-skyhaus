@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { formatRupiah } from '@/lib/utils';
 import Link from 'next/link';
 import { CreditCard, DollarSign, FileText, BarChart, AlertTriangle, CheckCircle } from 'lucide-react';
+import FullscreenToggle from '@/components/FullscreenToggle';
 import type { ReportSummary } from '@/types';
 
 export default function AdminDashboard() {
@@ -55,9 +56,12 @@ export default function AdminDashboard() {
           <h1 className="page-title">Dashboard</h1>
           <p className="page-subtitle">Ringkasan aktivitas hari ini — {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
         </div>
-        <Link href="/pos" className="btn btn-primary">
-          <CreditCard size={18} /> Buka Kasir
-        </Link>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <FullscreenToggle />
+          <Link href="/pos" className="btn btn-primary">
+            <CreditCard size={18} /> Buka Kasir
+          </Link>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -114,13 +118,15 @@ export default function AdminDashboard() {
             {report && report.totalTransactions > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
                 {[
-                  { label: 'Tunai (CASH)', value: report.paymentBreakdown.CASH, color: 'var(--color-success)' },
-                  { label: 'Transfer', value: report.paymentBreakdown.TRANSFER, color: 'var(--color-info)' },
-                  { label: 'QRIS', value: report.paymentBreakdown.QRIS, color: 'var(--color-primary-light)' },
+                  { label: 'Tunai (CASH)', value: report.paymentBreakdown.CASH.amount, count: report.paymentBreakdown.CASH.count, color: 'var(--color-success)' },
+                  { label: 'Transfer', value: report.paymentBreakdown.TRANSFER.amount, count: report.paymentBreakdown.TRANSFER.count, color: 'var(--color-info)' },
+                  { label: 'QRIS', value: report.paymentBreakdown.QRIS.amount, count: report.paymentBreakdown.QRIS.count, color: 'var(--color-primary-light)' },
                 ].map(item => (
                   <div key={item.label}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                      <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)' }}>{item.label}</span>
+                      <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)' }}>
+                        {item.label} <span style={{ fontSize: '12px', background: 'var(--color-bg-elevated)', padding: '2px 6px', borderRadius: 4, marginLeft: 4 }}>{item.count} trx</span>
+                      </span>
                       <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{formatRupiah(item.value)}</span>
                     </div>
                     <div style={{ height: 8, background: 'var(--color-bg-elevated)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>

@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
     },
   },
   // Allow access from other devices on local network
-  allowedDevOrigins: ['192.168.1.118', '10.71.222.163'],
+  allowedDevOrigins: ['192.168.1.118', '10.71.222.163', '10.230.103.163'],
   // Allow images from local uploads
   images: {
     remotePatterns: [],

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { formatRupiah, formatDateTime } from '@/lib/utils';
 import { Table, FileText, DollarSign, BarChart, Banknote, Building, Smartphone, Eye } from 'lucide-react';
 import type { ReportSummary, TransactionWithDetails } from '@/types';
@@ -12,6 +12,22 @@ export default function ReportsPage() {
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedTx, setSelectedTx] = useState<TransactionWithDetails | null>(null);
+
+  const productSales = React.useMemo(() => {
+    if (!report?.transactions) return [];
+    const sales: Record<string, { name: string, quantity: number, total: number }> = {};
+    report.transactions.forEach(tx => {
+      tx.items.forEach(item => {
+        const key = item.productName;
+        if (!sales[key]) {
+          sales[key] = { name: item.productName, quantity: 0, total: 0 };
+        }
+        sales[key].quantity += item.quantity;
+        sales[key].total += item.subtotal;
+      });
+    });
+    return Object.values(sales).sort((a, b) => b.quantity - a.quantity);
+  }, [report]);
 
   const fetchReport = async () => {
     setLoading(true);
@@ -59,8 +75,8 @@ export default function ReportsPage() {
   const exportToCSV = () => {
     if (!report || !report.transactions.length) return;
 
-    const headers = ['No Invoice', 'Tanggal', 'Items', 'Subtotal', 'Pajak', 'Total', 'Metode Bayar', 'Kasir'];
-    const rows = report.transactions.map(tx => [
+    const txHeaders = ['No Invoice', 'Tanggal', 'Items', 'Subtotal', 'Pajak', 'Total', 'Metode Bayar', 'Kasir'];
+    const txRows = report.transactions.map(tx => [
       tx.invoiceNo,
       new Date(tx.createdAt).toLocaleString('id-ID'),
       tx.items.map(i => `${i.quantity}x ${i.productName}`).join('; '),
@@ -71,7 +87,25 @@ export default function ReportsPage() {
       tx.user.name,
     ]);
 
-    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const prodHeaders = ['Nama Produk', 'Terjual (Pcs)', 'Total Rupiah'];
+    const prodRows = productSales.map(prod => [
+      prod.name,
+      prod.quantity,
+      prod.total
+    ]);
+
+    const csvLines = [
+      'DAFTAR TRANSAKSI',
+      txHeaders.join(','),
+      ...txRows.map(r => r.join(',')),
+      '',
+      '',
+      'AKUMULASI PRODUK TERJUAL',
+      prodHeaders.join(','),
+      ...prodRows.map(r => r.join(','))
+    ];
+
+    const csv = csvLines.join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -172,19 +206,57 @@ export default function ReportsPage() {
             <div className="card-body">
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-xl)' }}>
                 {[
-                  { label: <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><Banknote size={16} /> Tunai (CASH)</span>, value: report.paymentBreakdown.CASH, color: 'var(--color-success)' },
-                  { label: <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><Building size={16} /> Transfer</span>, value: report.paymentBreakdown.TRANSFER, color: 'var(--color-info)' },
-                  { label: <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><Smartphone size={16} /> QRIS</span>, value: report.paymentBreakdown.QRIS, color: 'var(--color-primary-light)' },
+                  { label: <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><Banknote size={16} /> Tunai (CASH)</span>, data: report.paymentBreakdown.CASH, color: 'var(--color-success)' },
+                  { label: <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><Building size={16} /> Transfer</span>, data: report.paymentBreakdown.TRANSFER, color: 'var(--color-info)' },
+                  { label: <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><Smartphone size={16} /> QRIS</span>, data: report.paymentBreakdown.QRIS, color: 'var(--color-primary-light)' },
                 ].map((item, idx) => (
                   <div key={idx} style={{ textAlign: 'center' }}>
-                    <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-sm)' }}>{item.label}</p>
-                    <p style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: item.color }}>{formatRupiah(item.value)}</p>
+                    <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-sm)' }}>
+                      {item.label}
+                    </p>
+                    <p style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: item.color }}>{formatRupiah(item.data.amount)}</p>
                     <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
-                      {report.totalRevenue > 0 ? Math.round(item.value / report.totalRevenue * 100) : 0}%
+                      {item.data.count} transaksi • {report.totalRevenue > 0 ? Math.round(item.data.amount / report.totalRevenue * 100) : 0}%
                     </p>
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+
+          {/* Product Sales Accumulation */}
+          <div className="card" style={{ marginBottom: 'var(--space-xl)' }}>
+            <div className="card-header">
+              <h3 style={{ fontSize: 'var(--text-md)', fontWeight: 700 }}>Akumulasi Produk Terjual</h3>
+            </div>
+            <div className="table-container" style={{ border: 'none', maxHeight: '400px', overflowY: 'auto' }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Nama Produk</th>
+                    <th style={{ textAlign: 'right' }}>Terjual (Pcs)</th>
+                    <th style={{ textAlign: 'right' }}>Total Rupiah</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {productSales.map((prod, idx) => (
+                    <tr key={idx}>
+                      <td style={{ fontWeight: 600 }}>{prod.name}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <span className="badge badge-primary">{prod.quantity} pcs</span>
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatRupiah(prod.total)}</td>
+                    </tr>
+                  ))}
+                  {productSales.length === 0 && (
+                    <tr>
+                      <td colSpan={3} style={{ textAlign: 'center', padding: 'var(--space-xl)', color: 'var(--color-text-muted)' }}>
+                        Belum ada produk yang terjual
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
 

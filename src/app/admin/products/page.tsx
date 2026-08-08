@@ -29,6 +29,7 @@ export default function ProductsPage() {
   const [formLowStock, setFormLowStock] = useState('5');
   const [formCategory, setFormCategory] = useState('');
   const [formImage, setFormImage] = useState<string | null>(null);
+  const [formIsActive, setFormIsActive] = useState(true);
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -70,6 +71,7 @@ export default function ProductsPage() {
     setFormLowStock('5');
     setFormCategory(categories[0]?.id || '');
     setFormImage(null);
+    setFormIsActive(true);
     setShowModal(true);
   };
 
@@ -82,6 +84,7 @@ export default function ProductsPage() {
     setFormLowStock(product.lowStock.toString());
     setFormCategory(product.categoryId);
     setFormImage(product.image);
+    setFormIsActive(product.isActive);
     setShowModal(true);
   };
 
@@ -129,6 +132,7 @@ export default function ProductsPage() {
         lowStock: formLowStock || '5',
         categoryId: formCategory,
         image: formImage,
+        isActive: formIsActive,
       };
 
       const url = editingProduct ? `/api/products/${editingProduct.id}` : '/api/products';
@@ -340,6 +344,12 @@ export default function ProductsPage() {
                     <label className="form-label">Min. Stok</label>
                     <input type="number" className="form-input" value={formLowStock} onChange={e => setFormLowStock(e.target.value)} placeholder="5" />
                   </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={formIsActive} onChange={e => setFormIsActive(e.target.checked)} style={{ width: '16px', height: '16px' }} />
+                    Produk Aktif (ditampilkan di kasir)
+                  </label>
                 </div>
               </div>
             </div>

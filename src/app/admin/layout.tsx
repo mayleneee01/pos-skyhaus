@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
 import { LayoutDashboard, Package, Tags, BarChart3, Settings, CreditCard, LogOut } from 'lucide-react';
+import FullscreenToggle from '@/components/FullscreenToggle';
 
 function AdminSidebar() {
   const pathname = usePathname();

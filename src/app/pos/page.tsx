@@ -5,6 +5,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { formatRupiah } from '@/lib/utils';
 import { History, ShoppingCart, CreditCard, Banknote, Building, Smartphone, AlertTriangle, CheckCircle, Printer, LayoutDashboard } from 'lucide-react';
 import FullscreenToggle from '@/components/FullscreenToggle';
+import { printWithRawBT } from '@/lib/rawbt';
 import type { ProductWithCategory, CartItem, StoreSettingData, CreateTransactionPayload, TransactionWithDetails } from '@/types';
 
 export default function POSPage() {
@@ -422,12 +423,12 @@ export default function POSPage() {
                       placeholder="Masukkan jumlah uang..."
                       value={cashReceived}
                       onChange={(e) => setCashReceived(e.target.value)}
-                      style={{ fontSize: 'var(--text-xl)', fontWeight: 700, textAlign: 'center' }}
+                      style={{ fontSize: 'var(--text-lg)', fontWeight: 700, textAlign: 'center', padding: '10px' }}
                       autoFocus
                     />
                   </div>
 
-                  <div className="quick-amount-grid">
+                  <div className="quick-amount-grid" style={{ marginTop: '16px', gap: '8px', gridTemplateColumns: 'repeat(3, 1fr)' }}>
                     {[grandTotal, 20000, 50000, 75000, 100000, 150000, 200000, 250000, 500000].map(amount => (
                       <button
                         key={amount}
@@ -448,9 +449,9 @@ export default function POSPage() {
 
                   {cashReceived && parseInt(cashReceived) < grandTotal && (
                     <div style={{
-                      textAlign: 'center', padding: 'var(--space-lg)',
-                      background: 'var(--color-danger-bg)', borderRadius: 'var(--radius-md)',
-                      marginTop: 'var(--space-lg)', color: 'var(--color-danger)', fontWeight: 600
+                      textAlign: 'center', padding: '12px',
+                      background: 'var(--color-danger-bg)', borderRadius: 'var(--radius-sm)',
+                      marginTop: '12px', color: 'var(--color-danger)', fontWeight: 600, fontSize: 'var(--text-sm)'
                     }}>
                       Uang tidak cukup (kurang {formatRupiah(grandTotal - parseInt(cashReceived))})
                     </div>
@@ -463,8 +464,8 @@ export default function POSPage() {
                 <div className="qris-display">
                   {settings?.qrisImage ? (
                     <>
-                      <img src={settings.qrisImage} alt="QRIS" className="qris-image" />
-                      <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)', textAlign: 'center' }}>
+                      <img src={settings.qrisImage} alt="QRIS" className="qris-image" style={{ maxHeight: '150px', maxWidth: '150px', margin: '0 auto', display: 'block', objectFit: 'contain' }} />
+                      <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-xs)', textAlign: 'center', marginTop: '8px' }}>
                         Minta pelanggan scan QRIS di atas
                       </p>
                     </>
@@ -588,7 +589,11 @@ export default function POSPage() {
               <button className="btn btn-secondary" onClick={() => setShowReceipt(false)}>
                 Tutup
               </button>
-              <button className="btn btn-primary" onClick={() => window.print()}>
+              <button className="btn btn-primary" onClick={() => {
+                if (lastTransaction) {
+                  printWithRawBT(lastTransaction, settings || undefined);
+                }
+              }}>
                 <Printer size={16} /> Cetak Struk
               </button>
             </div>
@@ -621,6 +626,7 @@ export default function POSPage() {
                         <th>Items</th>
                         <th>Total</th>
                         <th>Metode</th>
+                        <th>Aksi</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -637,6 +643,14 @@ export default function POSPage() {
                           </td>
                           <td style={{ fontWeight: 700 }}>{formatRupiah(tx.grandTotal)}</td>
                           <td><span className="badge badge-primary">{tx.paymentMethod}</span></td>
+                          <td>
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => printWithRawBT(tx, settings || undefined)}
+                            >
+                              <Printer size={14} /> Cetak
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
