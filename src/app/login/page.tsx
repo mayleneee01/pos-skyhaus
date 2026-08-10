@@ -17,7 +17,7 @@ export default function LoginPage() {
     try {
       const result = await loginAction(email, password);
       if (result && !result.success) {
-        setError(result.error);
+        setError(result.error || 'Terjadi kesalahan');
       }
       // If successful, the server action will redirect automatically
     } catch {
