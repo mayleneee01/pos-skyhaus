@@ -18,7 +18,8 @@ export default async function middleware(request: NextRequest) {
   if (
     pathname.startsWith('/api/edc/callback') ||
     pathname.startsWith('/api/edc/mock') ||
-    pathname.startsWith('/api/ping-db')
+    pathname.startsWith('/api/ping-db') ||
+    pathname.startsWith('/api/test-auth')
   ) {
     return NextResponse.next();
   }
