@@ -33,6 +33,16 @@ export default async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Root path — redirect to dashboard or login
+  if (pathname === '/') {
+    if (session) {
+      const role = (session.user as { role: string }).role;
+      const redirectUrl = role === 'ADMIN' ? '/admin' : '/pos';
+      return NextResponse.redirect(new URL(redirectUrl, request.url));
+    }
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
   // Protected routes — redirect to login if not authenticated
   if (!session) {
     return NextResponse.redirect(new URL('/login', request.url));

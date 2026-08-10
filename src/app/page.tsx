@@ -1,13 +1,9 @@
 import { redirect } from 'next/navigation';
-import { auth } from '@/lib/auth';
 
-export default async function Home() {
-  const session = await auth();
-
-  if (!session) {
-    redirect('/login');
-  }
-
-  const role = (session.user as { role: string }).role;
-  redirect(role === 'ADMIN' ? '/admin' : '/pos');
+export default function Home() {
+  // Middleware already handles auth redirects:
+  // - Logged in ADMIN → /admin
+  // - Logged in CASHIER → /pos  
+  // - Not logged in → /login
+  redirect('/login');
 }
