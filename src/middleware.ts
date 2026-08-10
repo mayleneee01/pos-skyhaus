@@ -3,7 +3,8 @@ import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
 export default async function middleware(request: NextRequest) {
-  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+  const token = await getToken({ req: request, secret });
   // Map token to session-like structure for the existing logic
   const session = token ? { user: { role: token.role } } : null;
   const { pathname } = request.nextUrl;
