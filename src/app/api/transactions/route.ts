@@ -114,6 +114,7 @@ export async function POST(request: NextRequest) {
           taxAmount: taxAmount || 0,
           grandTotal,
           paymentMethod,
+          status: 'COMPLETED',
           cashReceived: cashReceived || null,
           changeAmount: changeAmount || null,
           note: note || null,
