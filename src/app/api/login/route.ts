@@ -37,8 +37,10 @@ export async function POST(request: Request) {
 
     // Create JWT token matching NextAuth format
     const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET!;
+    const sessionTokenName = 'authjs.session-token';
     const token = await encode({
       secret,
+      salt: sessionTokenName,
       token: {
         sub: user.id,
         name: user.name,
