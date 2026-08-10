@@ -9,7 +9,7 @@ import { printWithRawBT } from '@/lib/rawbt';
 import type { ProductWithCategory, CartItem, StoreSettingData, CreateTransactionPayload, TransactionWithDetails } from '@/types';
 
 export default function POSPage() {
-  const { data: session } = useSession();
+  const [session, setSession] = useState<any>(null);
   const [products, setProducts] = useState<ProductWithCategory[]>([]);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -99,8 +99,18 @@ export default function POSPage() {
     }
   };
 
+  const fetchSession = async () => {
+    try {
+      const res = await fetch('/api/me');
+      const data = await res.json();
+      if (data.success) setSession(data.session);
+    } catch (error) {
+      console.error('Failed to fetch session:', error);
+    }
+  };
+
   useEffect(() => {
-    Promise.all([fetchCategories(), fetchSettings(), fetchEdcTerminals()]).then(() => setLoading(false));
+    Promise.all([fetchCategories(), fetchSettings(), fetchEdcTerminals(), fetchSession()]).then(() => setLoading(false));
   }, []);
 
   useEffect(() => {
