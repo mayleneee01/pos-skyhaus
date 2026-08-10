@@ -22,7 +22,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           console.log('[AUTH] Looking up user:', credentials.email);
           const user = await prisma.user.findUnique({
-            where: { email: credentials.email as string },
+            where: { email: (credentials.email as string).trim() },
           });
 
           if (!user) {
@@ -36,9 +36,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
 
           console.log('[AUTH] User found, comparing password...');
-          const inputPassword = credentials.password as string;
-          console.log('[AUTH] Password type:', typeof inputPassword, 'length:', inputPassword.length, 'first3:', inputPassword.substring(0, 3), 'last3:', inputPassword.substring(inputPassword.length - 3));
-          console.log('[AUTH] Hash from DB:', user.password.substring(0, 20) + '...');
+          const inputPassword = (credentials.password as string).trim();
+          console.log('[AUTH] Password type:', typeof inputPassword, 'length:', inputPassword.length);
           const isPasswordValid = await bcrypt.compare(
             inputPassword,
             user.password
