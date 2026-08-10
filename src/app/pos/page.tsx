@@ -326,7 +326,13 @@ export default function POSPage() {
             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>
               {session?.user?.name}
             </span>
-            <button className="btn btn-ghost btn-sm" onClick={() => signOut()}>
+            <button 
+              className="btn btn-ghost btn-sm" 
+              onClick={async () => {
+                await fetch('/api/logout', { method: 'POST' });
+                window.location.href = '/login';
+              }}
+            >
               Keluar
             </button>
           </div>

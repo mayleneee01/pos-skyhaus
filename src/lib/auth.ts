@@ -3,7 +3,7 @@ import Credentials from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import prisma from './prisma';
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+export const { handlers, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
       name: 'credentials',
@@ -89,3 +89,33 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
   trustHost: true,
 });
+
+import { cookies } from 'next/headers';
+import { decode } from 'next-auth/jwt';
+
+export async function auth() {
+  try {
+    // Next.js 15 requires awaiting cookies(), but for Next.js 14 it's synchronous. 
+    // We can use it synchronously but we must handle both if needed.
+    // Given the Next.js version, let's just use it safely.
+    const cookieStore = await cookies();
+    const tokenCookie = cookieStore.get('authjs.session-token') || cookieStore.get('__Secure-authjs.session-token');
+    
+    if (!tokenCookie?.value) return null;
+    
+    const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET!;
+    const decoded = await decode({
+      token: tokenCookie.value,
+      secret,
+      salt: 'authjs.session-token'
+    });
+    
+    if (decoded) {
+      return { user: decoded };
+    }
+    return null;
+  } catch (error) {
+    console.error('Custom auth error:', error);
+    return null;
+  }
+}

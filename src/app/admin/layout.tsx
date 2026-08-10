@@ -53,10 +53,16 @@ function AdminSidebar() {
       <div className="sidebar-footer">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{session?.user?.name}</div>
+            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{session?.user?.name || 'Admin'}</div>
             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>Admin</div>
           </div>
-          <button className="btn btn-ghost btn-sm" onClick={() => signOut()}>
+          <button 
+            className="btn btn-ghost btn-sm" 
+            onClick={async () => {
+              await fetch('/api/logout', { method: 'POST' });
+              window.location.href = '/login';
+            }}
+          >
             Keluar
           </button>
         </div>
