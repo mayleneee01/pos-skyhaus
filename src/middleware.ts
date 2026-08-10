@@ -13,8 +13,12 @@ export default async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Public webhook routes (EDC)
-  if (pathname.startsWith('/api/edc/callback') || pathname.startsWith('/api/edc/mock')) {
+  // Public webhook routes (EDC & Diagnostic)
+  if (
+    pathname.startsWith('/api/edc/callback') ||
+    pathname.startsWith('/api/edc/mock') ||
+    pathname.startsWith('/api/ping-db')
+  ) {
     return NextResponse.next();
   }
 
