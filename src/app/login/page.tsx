@@ -30,8 +30,9 @@ export default function LoginPage() {
       }
 
       setError(result.error || 'Email atau password salah');
-    } catch {
-      setError('Terjadi kesalahan, coba lagi');
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setError(`Terjadi kesalahan: ${err.message || JSON.stringify(err)}`);
     } finally {
       setLoading(false);
     }
