@@ -8,8 +8,9 @@ export async function loginAction(email: string, password: string) {
     await signIn('credentials', {
       email,
       password,
-      redirectTo: '/',
+      redirect: false,
     });
+    return { success: true };
   } catch (error) {
     if (error instanceof AuthError) {
       switch (error.type) {
@@ -19,8 +20,11 @@ export async function loginAction(email: string, password: string) {
           return { success: false, error: 'Terjadi kesalahan, coba lagi' };
       }
     }
-    // Next.js redirect throws an error that we need to re-throw
-    throw error;
+    // NextAuth signIn throws NEXT_REDIRECT on success — treat as success
+    const digest = (error as any)?.digest;
+    if (typeof digest === 'string' && digest.startsWith('NEXT_REDIRECT')) {
+      return { success: true };
+    }
+    return { success: false, error: 'Terjadi kesalahan, coba lagi' };
   }
-  return { success: true };
 }

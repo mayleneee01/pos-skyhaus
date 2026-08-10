@@ -16,12 +16,14 @@ export default function LoginPage() {
 
     try {
       const result = await loginAction(email, password);
-      if (result && !result.success) {
-        setError(result.error || 'Terjadi kesalahan');
+      if (result.success) {
+        // Full page reload to pick up the new session cookie
+        window.location.href = '/';
+        return;
       }
-      // If successful, the server action will redirect automatically
+      setError(result.error || 'Terjadi kesalahan');
     } catch {
-      // Server action redirect throws - this is expected on success
+      setError('Terjadi kesalahan, coba lagi');
     } finally {
       setLoading(false);
     }
