@@ -290,12 +290,17 @@ export default function SettingsPage() {
                 <tr>
                   <td><span className="badge badge-primary">Admin</span></td>
                   <td style={{ fontFamily: 'var(--font-mono)' }}>admin@skyhaus.com</td>
-                  <td style={{ fontFamily: 'var(--font-mono)' }}>admin123</td>
+                  <td style={{ fontFamily: 'var(--font-mono)' }}>AdminSkyhaus!2024</td>
                 </tr>
                 <tr>
-                  <td><span className="badge badge-info">Kasir</span></td>
+                  <td><span className="badge badge-info">Kasir 1</span></td>
                   <td style={{ fontFamily: 'var(--font-mono)' }}>kasir@skyhaus.com</td>
-                  <td style={{ fontFamily: 'var(--font-mono)' }}>kasir123</td>
+                  <td style={{ fontFamily: 'var(--font-mono)' }}>KasirKerja!123</td>
+                </tr>
+                <tr>
+                  <td><span className="badge badge-info">Kasir 2</span></td>
+                  <td style={{ fontFamily: 'var(--font-mono)' }}>kasir2@skyhaus.com</td>
+                  <td style={{ fontFamily: 'var(--font-mono)' }}>KasirKerja!123</td>
                 </tr>
               </tbody>
             </table>

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/products — Get all products with category
 export async function GET(request: NextRequest) {
   try {
@@ -57,7 +59,7 @@ export async function POST(request: NextRequest) {
     const product = await prisma.product.create({
       data: {
         name,
-        sku: sku || null,
+        sku: (sku && sku.trim() !== '') ? sku.trim() : null,
         price: parseInt(price),
         stock: parseInt(stock) || 0,
         lowStock: parseInt(lowStock) || 5,
@@ -70,8 +72,11 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ success: true, data: product }, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('POST /api/products error:', error);
+    if (error.code === 'P2002') {
+      return NextResponse.json({ success: false, error: 'Kode SKU sudah digunakan oleh produk lain' }, { status: 400 });
+    }
     return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
   }
 }

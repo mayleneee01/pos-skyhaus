@@ -247,7 +247,7 @@ export default function ProductsPage() {
                   </td>
                   <td style={{ fontWeight: 600 }}>{product.name}</td>
                   <td style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
-                    {product.sku || '—'}
+                    {product.sku || '-'}
                   </td>
                   <td><span className="badge badge-primary">{product.category.name}</span></td>
                   <td style={{ fontWeight: 600 }}>{formatRupiah(product.price)}</td>

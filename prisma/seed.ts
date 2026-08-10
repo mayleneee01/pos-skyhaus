@@ -7,14 +7,14 @@ async function main() {
   console.log('🌱 Seeding database...');
 
   // =====================
-  // 1. Create Users
+  // 1. Create / Update Users
   // =====================
-  const adminPassword = await bcrypt.hash('admin123', 12);
-  const cashierPassword = await bcrypt.hash('kasir123', 12);
+  const adminPassword = await bcrypt.hash('AdminSkyhaus!2024', 12);
+  const cashierPassword = await bcrypt.hash('KasirKerja!123', 12);
 
   const admin = await prisma.user.upsert({
     where: { email: 'admin@skyhaus.com' },
-    update: {},
+    update: { password: adminPassword },
     create: {
       name: 'Admin SKY HAUS',
       email: 'admin@skyhaus.com',
@@ -25,7 +25,7 @@ async function main() {
 
   const cashier = await prisma.user.upsert({
     where: { email: 'kasir@skyhaus.com' },
-    update: {},
+    update: { password: cashierPassword },
     create: {
       name: 'Kasir 1',
       email: 'kasir@skyhaus.com',
@@ -34,7 +34,18 @@ async function main() {
     },
   });
 
-  console.log('✅ Users created:', admin.email, cashier.email);
+  const cashier2 = await prisma.user.upsert({
+    where: { email: 'kasir2@skyhaus.com' },
+    update: { password: cashierPassword },
+    create: {
+      name: 'Kasir 2',
+      email: 'kasir2@skyhaus.com',
+      password: cashierPassword,
+      role: 'CASHIER',
+    },
+  });
+
+  console.log('✅ Users created:', admin.email, cashier.email, cashier2.email);
 
   // =====================
   // 2. Create Categories
@@ -251,11 +262,11 @@ async function main() {
     console.log('✅ Store settings created');
   }
 
-  console.log('🎉 Seeding completed!');
+  console.log('🎉 Seeding / Update completed!');
   console.log('');
-  console.log('📋 Login Credentials:');
-  console.log('   Admin: admin@skyhaus.com / admin123');
-  console.log('   Kasir: kasir@skyhaus.com / kasir123');
+  console.log('📋 Login Credentials Baru:');
+  console.log('   Admin: admin@skyhaus.com / AdminSkyhaus!2024');
+  console.log('   Kasir: kasir@skyhaus.com / KasirKerja!123');
 }
 
 main()

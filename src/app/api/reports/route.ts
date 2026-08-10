@@ -6,7 +6,12 @@ import { auth } from '@/lib/auth';
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session || (session.user as { role: string }).role !== 'ADMIN') {
+    if (!session) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const userRole = (session.user as { role: string }).role;
+    if (userRole !== 'ADMIN' && userRole !== 'CASHIER') {
       return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
     }
 
@@ -60,7 +65,21 @@ export async function GET(request: NextRequest) {
         amount: transactions.filter(t => t.paymentMethod === 'QRIS').reduce((sum, t) => sum + t.grandTotal, 0),
         count: transactions.filter(t => t.paymentMethod === 'QRIS').length
       },
+      QRIS_EDC: {
+        amount: transactions.filter(t => t.paymentMethod === 'QRIS_EDC').reduce((sum, t) => sum + t.grandTotal, 0),
+        count: transactions.filter(t => t.paymentMethod === 'QRIS_EDC').length
+      },
     };
+
+    const edcBreakdown = transactions
+      .filter(t => t.paymentMethod === 'QRIS_EDC' && t.edcName)
+      .reduce((acc, t) => {
+        if (!t.edcName) return acc;
+        if (!acc[t.edcName]) acc[t.edcName] = { amount: 0, count: 0 };
+        acc[t.edcName].amount += t.grandTotal;
+        acc[t.edcName].count += 1;
+        return acc;
+      }, {} as Record<string, { amount: number, count: number }>);
 
     return NextResponse.json({
       success: true,
@@ -69,6 +88,7 @@ export async function GET(request: NextRequest) {
         totalTransactions,
         avgTransaction,
         paymentBreakdown,
+        edcBreakdown,
         transactions,
       },
     });

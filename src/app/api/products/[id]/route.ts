@@ -49,7 +49,7 @@ export async function PUT(
       where: { id },
       data: {
         ...(name !== undefined && { name }),
-        ...(sku !== undefined && { sku: sku || null }),
+        ...(sku !== undefined && { sku: (sku && sku.trim() !== '') ? sku.trim() : null }),
         ...(price !== undefined && { price: parseInt(price) }),
         ...(stock !== undefined && { stock: parseInt(stock) }),
         ...(lowStock !== undefined && { lowStock: parseInt(lowStock) }),
@@ -63,8 +63,11 @@ export async function PUT(
     });
 
     return NextResponse.json({ success: true, data: product });
-  } catch (error) {
+  } catch (error: any) {
     console.error('PUT /api/products/[id] error:', error);
+    if (error.code === 'P2002') {
+      return NextResponse.json({ success: false, error: 'Kode SKU sudah digunakan oleh produk lain' }, { status: 400 });
+    }
     return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
   }
 }

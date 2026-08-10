@@ -51,6 +51,8 @@ export interface TransactionWithDetails {
   changeAmount: number | null;
   status: string;
   note: string | null;
+  edcReference: string | null;
+  edcName: string | null;
   createdAt: string;
   user: {
     name: string;
@@ -91,10 +93,12 @@ export interface ReportSummary {
   totalTransactions: number;
   avgTransaction: number;
   paymentBreakdown: {
-    CASH: number;
-    TRANSFER: number;
-    QRIS: number;
+    CASH: { amount: number; count: number };
+    TRANSFER: { amount: number; count: number };
+    QRIS: { amount: number; count: number };
+    QRIS_EDC: { amount: number; count: number };
   };
+  edcBreakdown: Record<string, { amount: number; count: number }>;
   transactions: TransactionWithDetails[];
 }
 

@@ -54,7 +54,7 @@ export default function AdminDashboard() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Dashboard</h1>
-          <p className="page-subtitle">Ringkasan aktivitas hari ini — {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          <p className="page-subtitle">Ringkasan aktivitas hari ini - {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <FullscreenToggle />

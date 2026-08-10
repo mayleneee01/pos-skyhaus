@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { formatRupiah } from '@/lib/utils';
-import { History, ShoppingCart, CreditCard, Banknote, Building, Smartphone, AlertTriangle, CheckCircle, Printer, LayoutDashboard } from 'lucide-react';
+import { History, ShoppingCart, CreditCard, Banknote, Building, Smartphone, AlertTriangle, CheckCircle, Printer, LayoutDashboard, BarChart3 } from 'lucide-react';
 import FullscreenToggle from '@/components/FullscreenToggle';
 import { printWithRawBT } from '@/lib/rawbt';
 import type { ProductWithCategory, CartItem, StoreSettingData, CreateTransactionPayload, TransactionWithDetails } from '@/types';
@@ -17,14 +17,19 @@ export default function POSPage() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [settings, setSettings] = useState<StoreSettingData | null>(null);
   const [showPayment, setShowPayment] = useState(false);
-  const [showReceipt, setShowReceipt] = useState(false);
-  const [lastTransaction, setLastTransaction] = useState<TransactionWithDetails | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'TRANSFER' | 'QRIS'>('CASH');
+  const [showHistory, setShowHistory] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'TRANSFER' | 'QRIS' | 'QRIS_EDC'>('CASH');
   const [cashReceived, setCashReceived] = useState('');
   const [paymentLoading, setPaymentLoading] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [lastTransaction, setLastTransaction] = useState<TransactionWithDetails | null>(null);
   const [todayTransactions, setTodayTransactions] = useState<TransactionWithDetails[]>([]);
+
+  // EDC States
+  const [isEdcProcessing, setIsEdcProcessing] = useState(false);
+  const [edcTransactionId, setEdcTransactionId] = useState<string | null>(null);
+  const [edcTerminals, setEdcTerminals] = useState<any[]>([]);
+  const [selectedEdcId, setSelectedEdcId] = useState<string>('');
 
   // Calculate totals
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -79,13 +84,68 @@ export default function POSPage() {
     }
   };
 
+  const fetchEdcTerminals = async () => {
+    try {
+      const res = await fetch('/api/edc-terminals?activeOnly=true');
+      const data = await res.json();
+      if (data.success) {
+        setEdcTerminals(data.data);
+        if (data.data.length > 0) {
+          setSelectedEdcId(data.data[0].id);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch EDC terminals:', error);
+    }
+  };
+
   useEffect(() => {
-    Promise.all([fetchCategories(), fetchSettings()]).then(() => setLoading(false));
+    Promise.all([fetchCategories(), fetchSettings(), fetchEdcTerminals()]).then(() => setLoading(false));
   }, []);
 
   useEffect(() => {
     fetchProducts();
+    
+    // Auto-refresh products periodically to keep stock synced across multiple cashiers
+    const interval = setInterval(() => {
+      fetchProducts();
+    }, 15000); // 15 seconds
+
+    return () => clearInterval(interval);
   }, [fetchProducts]);
+
+  // EDC Polling
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isEdcProcessing && edcTransactionId) {
+      interval = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/edc/status?id=${edcTransactionId}`);
+          const data = await res.json();
+          if (data.success) {
+            if (data.status === 'COMPLETED') {
+              setIsEdcProcessing(false);
+              setEdcTransactionId(null);
+              setLastTransaction(data.transaction);
+              setShowPayment(false);
+              setShowReceipt(true);
+              clearCart();
+              setCashReceived('');
+              setPaymentMethod('CASH');
+              fetchProducts(); // refresh stock
+            } else if (data.status === 'FAILED' || data.status === 'VOIDED') {
+              setIsEdcProcessing(false);
+              setEdcTransactionId(null);
+              alert('Transaksi EDC Ditolak / Gagal / Dibatalkan');
+            }
+          }
+        } catch (err) {
+          console.error('EDC Polling Error:', err);
+        }
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [isEdcProcessing, edcTransactionId]);
 
   // Cart operations
   const addToCart = (product: ProductWithCategory) => {
@@ -140,12 +200,12 @@ export default function POSPage() {
 
     setPaymentLoading(true);
     try {
-      const payload: CreateTransactionPayload = {
+      const payload = {
         items: cart.map(item => ({
           productId: item.productId,
           quantity: item.quantity,
           unitPrice: item.price,
-          productName: item.name,
+          name: item.name,
         })),
         subtotal,
         taxRate,
@@ -156,8 +216,34 @@ export default function POSPage() {
           cashReceived: parseInt(cashReceived),
           changeAmount: parseInt(cashReceived) - grandTotal,
         }),
+        ...(paymentMethod === 'QRIS_EDC' && {
+          edcTerminalId: selectedEdcId
+        }),
       };
 
+      if (paymentMethod === 'QRIS_EDC') {
+        if (!selectedEdcId) {
+          alert('Silakan pilih Mesin EDC terlebih dahulu');
+          setPaymentLoading(false);
+          return;
+        }
+
+        const res = await fetch('/api/edc/initiate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setEdcTransactionId(data.transactionId);
+          setIsEdcProcessing(true);
+        } else {
+          alert(data.error || 'Gagal memulai transaksi EDC');
+        }
+        return;
+      }
+
+      // Normal processing for Cash/Transfer/QRIS
       const res = await fetch('/api/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -185,6 +271,7 @@ export default function POSPage() {
     }
   };
 
+  const [loading, setLoading] = useState(true);
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
@@ -224,6 +311,16 @@ export default function POSPage() {
                 fontSize: 'var(--text-xs)', fontWeight: 600, padding: '6px 10px', textDecoration: 'none',
               }}>
                 <LayoutDashboard size={14} /> Admin
+              </a>
+            )}
+            {(session?.user as any)?.role === 'CASHIER' && (
+              <a href="/pos/reports" className="btn btn-sm" style={{
+                display: 'flex', alignItems: 'center', gap: '4px',
+                background: 'var(--color-primary-bg)', color: 'var(--color-primary)',
+                border: '1px solid var(--color-primary)', borderRadius: 'var(--radius-sm)',
+                fontSize: 'var(--text-xs)', fontWeight: 600, padding: '6px 10px', textDecoration: 'none',
+              }}>
+                <BarChart3 size={14} /> Laporan
               </a>
             )}
             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>
@@ -363,7 +460,7 @@ export default function POSPage() {
                 className="btn btn-primary btn-lg btn-full"
                 onClick={() => setShowPayment(true)}
               >
-                <CreditCard size={20} /> Bayar — {formatRupiah(grandTotal)}
+                <CreditCard size={20} /> Bayar - {formatRupiah(grandTotal)}
               </button>
             </div>
           </>
@@ -382,127 +479,116 @@ export default function POSPage() {
             </div>
 
             <div className="modal-body">
-              {/* Total */}
-              <div style={{ textAlign: 'center', marginBottom: 'var(--space-xl)' }}>
-                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>Total Pembayaran</p>
-                <p style={{ fontSize: 'var(--text-4xl)', fontWeight: 800, color: 'var(--color-primary-light)' }}>
-                  {formatRupiah(grandTotal)}
-                </p>
-              </div>
-
-              {/* Payment Method Tabs */}
-              <div className="payment-tabs">
-                <button
-                  className={`payment-tab ${paymentMethod === 'CASH' ? 'active' : ''}`}
-                  onClick={() => setPaymentMethod('CASH')}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Banknote size={16} /> Tunai</span>
-                </button>
-                <button
-                  className={`payment-tab ${paymentMethod === 'TRANSFER' ? 'active' : ''}`}
-                  onClick={() => setPaymentMethod('TRANSFER')}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Building size={16} /> Transfer</span>
-                </button>
-                <button
-                  className={`payment-tab ${paymentMethod === 'QRIS' ? 'active' : ''}`}
-                  onClick={() => setPaymentMethod('QRIS')}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Smartphone size={16} /> QRIS</span>
-                </button>
-              </div>
-
-              {/* CASH Payment */}
-              {paymentMethod === 'CASH' && (
-                <div>
-                  <div className="form-group">
-                    <label className="form-label">Uang Diterima</label>
-                    <input
-                      type="number"
-                      className="form-input"
-                      placeholder="Masukkan jumlah uang..."
-                      value={cashReceived}
-                      onChange={(e) => setCashReceived(e.target.value)}
-                      style={{ fontSize: 'var(--text-lg)', fontWeight: 700, textAlign: 'center', padding: '10px' }}
-                      autoFocus
-                    />
-                  </div>
-
-                  <div className="quick-amount-grid" style={{ marginTop: '16px', gap: '8px', gridTemplateColumns: 'repeat(3, 1fr)' }}>
-                    {[grandTotal, 20000, 50000, 75000, 100000, 150000, 200000, 250000, 500000].map(amount => (
-                      <button
-                        key={amount}
-                        className="quick-amount-btn"
-                        onClick={() => setCashReceived(amount.toString())}
-                      >
-                        {amount === grandTotal ? 'Uang Pas' : formatRupiah(amount)}
-                      </button>
-                    ))}
-                  </div>
-
-                  {cashReceived && parseInt(cashReceived) >= grandTotal && (
-                    <div className="change-display">
-                      <p className="change-label">Kembalian</p>
-                      <p className="change-amount">{formatRupiah(changeAmount)}</p>
-                    </div>
-                  )}
-
-                  {cashReceived && parseInt(cashReceived) < grandTotal && (
-                    <div style={{
-                      textAlign: 'center', padding: '12px',
-                      background: 'var(--color-danger-bg)', borderRadius: 'var(--radius-sm)',
-                      marginTop: '12px', color: 'var(--color-danger)', fontWeight: 600, fontSize: 'var(--text-sm)'
-                    }}>
-                      Uang tidak cukup (kurang {formatRupiah(grandTotal - parseInt(cashReceived))})
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* TRANSFER / QRIS Payment */}
-              {(paymentMethod === 'TRANSFER' || paymentMethod === 'QRIS') && (
-                <div className="qris-display">
-                  {settings?.qrisImage ? (
-                    <>
-                      <img src={settings.qrisImage} alt="QRIS" className="qris-image" style={{ maxHeight: '150px', maxWidth: '150px', margin: '0 auto', display: 'block', objectFit: 'contain' }} />
-                      <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-xs)', textAlign: 'center', marginTop: '8px' }}>
-                        Minta pelanggan scan QRIS di atas
-                      </p>
-                    </>
-                  ) : (
-                    <div style={{ padding: 'var(--space-2xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                      <p style={{ display: 'flex', justifyContent: 'center', marginBottom: 'var(--space-md)' }}><Smartphone size={48} /></p>
-                      <p>Gambar QRIS belum diatur.</p>
-                      <p style={{ fontSize: 'var(--text-xs)' }}>Upload melalui menu Pengaturan (Admin).</p>
-                    </div>
-                  )}
-                  <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-warning)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-                    <AlertTriangle size={16} /> Pastikan dana sudah masuk sebelum konfirmasi
+              {isEdcProcessing ? (
+                <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                  <div className="spinner" style={{ width: 60, height: 60, borderWidth: 4, margin: '0 auto 24px auto' }} />
+                  <h3 style={{ fontSize: 'var(--text-xl)', marginBottom: '8px' }}>Memproses EDC...</h3>
+                  <p style={{ color: 'var(--color-text-muted)', marginBottom: '24px' }}>
+                    Silakan tap atau gesek kartu pada mesin EDC.
                   </p>
+                  <button 
+                    className="btn btn-secondary" 
+                    onClick={() => { setIsEdcProcessing(false); setEdcTransactionId(null); }}
+                  >
+                    Batal Transaksi
+                  </button>
                 </div>
-              )}
-            </div>
+              ) : (
+                <>
+                  <div style={{ textAlign: 'center', marginBottom: 'var(--space-xl)' }}>
+                    <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>Total Pembayaran</p>
+                    <p style={{ fontSize: 'var(--text-4xl)', fontWeight: 800, color: 'var(--color-primary-light)' }}>
+                      {formatRupiah(grandTotal)}
+                    </p>
+                  </div>
 
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowPayment(false)}>
-                Batal
-              </button>
-              <button
-                className="btn btn-primary btn-lg"
-                onClick={processPayment}
-                disabled={
-                  paymentLoading ||
-                  (paymentMethod === 'CASH' && (!cashReceived || parseInt(cashReceived) < grandTotal))
-                }
-              >
-                {paymentLoading ? (
-                  <><span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /> Memproses...</>
-                ) : paymentMethod === 'CASH' ? (
-                  <><CheckCircle size={18} /> Proses Pembayaran</>
-                ) : (
-                  <><CheckCircle size={18} /> Konfirmasi Pembayaran</>
-                )}
-              </button>
+                  <div className="payment-tabs">
+                    <button className={`payment-tab ${paymentMethod === 'CASH' ? 'active' : ''}`} onClick={() => setPaymentMethod('CASH')}><Banknote size={16} /> Tunai</button>
+                    <button className={`payment-tab ${paymentMethod === 'TRANSFER' ? 'active' : ''}`} onClick={() => setPaymentMethod('TRANSFER')}><Building size={16} /> Transfer</button>
+                    <button className={`payment-tab ${paymentMethod === 'QRIS' ? 'active' : ''}`} onClick={() => setPaymentMethod('QRIS')}><Smartphone size={16} /> QRIS Standar</button>
+                    <button className={`payment-tab ${paymentMethod === 'QRIS_EDC' ? 'active' : ''}`} onClick={() => setPaymentMethod('QRIS_EDC')}><Smartphone size={16} /> QRIS EDC</button>
+                  </div>
+
+                  {paymentMethod === 'CASH' && (
+                    <div>
+                      <div className="form-group">
+                        <label className="form-label">Uang Diterima</label>
+                        <input type="number" className="form-input" placeholder="Masukkan jumlah uang..." value={cashReceived} onChange={(e) => setCashReceived(e.target.value)} style={{ fontSize: 'var(--text-lg)', fontWeight: 700, textAlign: 'center', padding: '10px' }} />
+                      </div>
+                      <div className="quick-amount-grid" style={{ marginTop: '16px', gap: '8px', gridTemplateColumns: 'repeat(3, 1fr)' }}>
+                        {[grandTotal, 20000, 50000, 75000, 100000, 150000, 200000, 250000, 500000].map(amount => (
+                          <button key={amount} className="quick-amount-btn" onClick={() => setCashReceived(amount.toString())}>{amount === grandTotal ? 'Uang Pas' : formatRupiah(amount)}</button>
+                        ))}
+                      </div>
+                      {cashReceived && parseInt(cashReceived) >= grandTotal && (
+                        <div className="change-display"><p className="change-label">Kembalian</p><p className="change-amount">{formatRupiah(changeAmount)}</p></div>
+                      )}
+                    </div>
+                  )}
+
+                  {paymentMethod === 'TRANSFER' && (
+                    <div style={{ textAlign: 'center', padding: 'var(--space-xl) 0', color: 'var(--color-text-muted)' }}>
+                      <p>Pastikan pembayaran transfer telah diterima sebelum menekan tombol Proses.</p>
+                    </div>
+                  )}
+
+                  {paymentMethod === 'QRIS' && (
+                    <div style={{ textAlign: 'center', padding: 'var(--space-xl) 0', color: 'var(--color-text-muted)' }}>
+                      <p>Pastikan pelanggan sudah scan QRIS dan saldo masuk sebelum menekan tombol Proses.</p>
+                      <div style={{ marginTop: 'var(--space-md)' }}>
+                        {settings?.qrisImage ? (
+                          <>
+                            <img src={settings.qrisImage} alt="QRIS" className="qris-image" style={{ maxHeight: '150px', maxWidth: '150px', margin: '0 auto' }} />
+                            <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-xs)', textAlign: 'center', marginTop: 'var(--space-xs)' }}>Minta pelanggan scan QRIS di atas</p>
+                          </>
+                        ) : (
+                          <p style={{ color: 'var(--color-warning)', fontSize: 'var(--text-sm)', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'center' }}><AlertTriangle size={16} /> Gambar QRIS belum diatur di Pengaturan</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {paymentMethod === 'QRIS_EDC' && (
+                    <div style={{ padding: 'var(--space-md) 0' }}>
+                      <div className="form-group">
+                        <label className="form-label">Pilih Mesin EDC</label>
+                        {edcTerminals.length === 0 ? (
+                          <div style={{ color: 'var(--color-danger)', fontSize: 'var(--text-sm)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <AlertTriangle size={16} /> Belum ada mesin EDC yang aktif. Hubungi Admin.
+                          </div>
+                        ) : (
+                          <select 
+                            className="form-input" 
+                            value={selectedEdcId} 
+                            onChange={e => setSelectedEdcId(e.target.value)}
+                            style={{ padding: '12px' }}
+                          >
+                            {edcTerminals.map(t => (
+                              <option key={t.id} value={t.id}>
+                                {t.name} ({t.bankName})
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                      <div style={{ textAlign: 'center', marginTop: 'var(--space-lg)', color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>
+                        <p>Klik tombol Proses untuk mengirim nominal secara otomatis ke mesin EDC yang dipilih.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    className="btn btn-primary btn-lg btn-full"
+                    onClick={processPayment}
+                    disabled={paymentLoading || (paymentMethod === 'CASH' && (!cashReceived || parseInt(cashReceived) < grandTotal))}
+                    style={{ marginTop: 'var(--space-lg)' }}
+                  >
+                    {paymentLoading ? (
+                      <><span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /> Memproses...</>
+                    ) : 'Proses Pembayaran'}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

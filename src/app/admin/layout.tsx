@@ -16,6 +16,7 @@ function AdminSidebar() {
     { href: '/admin/products', label: 'Produk', icon: <Package size={18} /> },
     { href: '/admin/categories', label: 'Kategori', icon: <Tags size={18} /> },
     { href: '/admin/reports', label: 'Laporan', icon: <BarChart3 size={18} /> },
+    { href: '/admin/edc', label: 'Mesin EDC', icon: <CreditCard size={18} /> },
     { href: '/admin/settings', label: 'Pengaturan', icon: <Settings size={18} /> },
   ];
 

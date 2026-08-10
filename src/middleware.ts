@@ -11,6 +11,11 @@ export default async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Public webhook routes (EDC)
+  if (pathname.startsWith('/api/edc/callback') || pathname.startsWith('/api/edc/mock')) {
+    return NextResponse.next();
+  }
+
   // Public routes (Login)
   if (pathname.startsWith('/login')) {
     if (session) {

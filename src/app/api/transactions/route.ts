@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     for (const item of items) {
       const product = await prisma.product.findUnique({ where: { id: item.productId } });
       if (!product) {
-        return NextResponse.json({ success: false, error: `Produk "${item.productName}" tidak ditemukan` }, { status: 404 });
+        return NextResponse.json({ success: false, error: `Produk "${item.name || item.productName}" tidak ditemukan` }, { status: 404 });
       }
       if (product.stock < item.quantity) {
         return NextResponse.json({
@@ -119,12 +119,12 @@ export async function POST(request: NextRequest) {
           note: note || null,
           userId: session.user.id,
           items: {
-            create: items.map((item: { productId: string; quantity: number; unitPrice: number; productName: string }) => ({
+            create: items.map((item: { productId: string; quantity: number; unitPrice: number; name?: string; productName?: string }) => ({
               productId: item.productId,
               quantity: item.quantity,
               unitPrice: item.unitPrice,
               subtotal: item.quantity * item.unitPrice,
-              productName: item.productName,
+              productName: item.name || item.productName || 'Unknown Product',
             })),
           },
         },

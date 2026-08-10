@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { formatRupiah, formatDateTime } from '@/lib/utils';
-import { Table, FileText, DollarSign, BarChart, Banknote, Building, Smartphone, Eye, CreditCard } from 'lucide-react';
+import { Table, FileText, DollarSign, BarChart, Banknote, Building, Smartphone, Eye, ArrowLeft, CreditCard } from 'lucide-react';
+import Link from 'next/link';
 import type { ReportSummary, TransactionWithDetails } from '@/types';
 
 export default function ReportsPage() {
@@ -121,9 +122,14 @@ export default function ReportsPage() {
   return (
     <div className="animate-fade-in">
       <div className="page-header">
-        <div>
-          <h1 className="page-title">Laporan & Rekapitulasi</h1>
-          <p className="page-subtitle">Analisis penjualan SKY HAUS</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
+          <Link href="/pos" className="btn btn-secondary btn-sm" style={{ padding: '8px' }}>
+            <ArrowLeft size={20} />
+          </Link>
+          <div>
+            <h1 className="page-title" style={{ marginBottom: 0 }}>Laporan & Rekapitulasi</h1>
+            <p className="page-subtitle">Analisis penjualan SKY HAUS</p>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
           <button className="btn btn-secondary" onClick={exportToCSV} disabled={!report?.transactions.length}>
@@ -236,7 +242,7 @@ export default function ReportsPage() {
                   {Object.entries(report.edcBreakdown).map(([edcName, data], idx) => (
                     <div key={idx} style={{ padding: 'var(--space-md)', background: 'var(--color-bg-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
                       <p style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '8px' }}>
-                        <CreditCard size={14} style={{ display: 'inline', marginRight: '6px', color: 'var(--color-primary)' }}/>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2" style={{ display: 'inline', marginRight: '6px' }}><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
                         {edcName}
                       </p>
                       <p style={{ fontSize: 'var(--text-lg)', fontWeight: 800, color: 'var(--color-primary-light)' }}>

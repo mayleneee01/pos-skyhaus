@@ -83,14 +83,18 @@ model Transaction {
   paymentMethod PaymentMethod
   cashReceived  Int?              // Untuk pembayaran tunai
   changeAmount  Int?              // Kembalian
-  status        TransactionStatus @default(COMPLETED)
-  note          String?
-  userId        String
+  status          TransactionStatus @default(PENDING)
+  note            String?
+  userId          String
+  edcReference    String?           // Reference ID from EDC Machine
+  edcTerminalId   String?           // Foreign key to EDCTerminal
+  edcName         String?           // Snapshot of EDC name at the time of transaction
 
   createdAt DateTime @default(now())
 
-  user  User              @relation(fields: [userId], references: [id])
-  items TransactionItem[]
+  user        User              @relation(fields: [userId], references: [id])
+  items       TransactionItem[]
+  edcTerminal EDCTerminal?      @relation(fields: [edcTerminalId], references: [id], onDelete: SetNull)
 
   @@map("transactions")
 }
@@ -99,10 +103,15 @@ enum PaymentMethod {
   CASH
   TRANSFER
   QRIS
+  QRIS_EDC
+  DEBIT
+  CREDIT
 }
 
 enum TransactionStatus {
+  PENDING
   COMPLETED
+  FAILED
   VOIDED
 }
 
@@ -135,4 +144,26 @@ model StoreSetting {
   receiptFooter String? @default("Terima Kasih Atas Kunjungan Anda!")
 
   @@map("store_settings")
+}
+
+// ============================================
+// EDC TERMINALS
+// ============================================
+
+model EDCTerminal {
+  id             String        @id @default(cuid())
+  name           String
+  bankName       String
+  terminalId     String?
+  merchantId     String?
+  connectionType String        @default("API")
+  ipAddress      String
+  isActive       Boolean       @default(true)
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  transactions   Transaction[]
+
+  @@map("edc_terminals")
 }
