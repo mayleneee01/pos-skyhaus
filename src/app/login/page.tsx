@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { loginAction } from './actions';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -15,13 +14,22 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const result = await loginAction(email, password);
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const result = await res.json();
+
       if (result.success) {
-        // Full page reload to pick up the new session cookie
-        window.location.href = '/';
+        // Navigate to the correct dashboard based on role
+        const target = result.role === 'ADMIN' ? '/admin' : '/pos';
+        window.location.href = target;
         return;
       }
-      setError(result.error || 'Terjadi kesalahan');
+
+      setError(result.error || 'Email atau password salah');
     } catch {
       setError('Terjadi kesalahan, coba lagi');
     } finally {
