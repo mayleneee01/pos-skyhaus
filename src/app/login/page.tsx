@@ -1,11 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { loginAction } from './actions';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -17,20 +15,13 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const result = await signIn('credentials', {
-        email,
-        password,
-        redirect: false,
-      });
-
-      if (result?.error) {
-        setError('Email atau password salah');
-      } else {
-        router.push('/');
-        router.refresh();
+      const result = await loginAction(email, password);
+      if (result && !result.success) {
+        setError(result.error);
       }
+      // If successful, the server action will redirect automatically
     } catch {
-      setError('Terjadi kesalahan, coba lagi');
+      // Server action redirect throws - this is expected on success
     } finally {
       setLoading(false);
     }
