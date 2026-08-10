@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
         edcReference,
         edcTerminalId,
         edcName,
-        userId: session.user.id,
+        userId: session.user.id as string,
         items: {
           create: items.map((item: any) => ({
             quantity: item.quantity,

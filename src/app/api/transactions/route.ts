@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
           cashReceived: cashReceived || null,
           changeAmount: changeAmount || null,
           note: note || null,
-          userId: session.user.id,
+          userId: session.user.id as string,
           items: {
             create: items.map((item: { productId: string; quantity: number; unitPrice: number; name?: string; productName?: string }) => ({
               productId: item.productId,
