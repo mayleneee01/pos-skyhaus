@@ -188,6 +188,9 @@ export async function generateReceiptEscPos(transaction: TransactionWithDetails,
   text(formatLine('Tanggal', new Date(transaction.createdAt).toLocaleString('id-ID')));
   text(formatLine('Kasir', transaction.user?.name || 'Kasir'));
   text(formatLine('Metode', transaction.paymentMethod));
+  if (transaction.note) {
+    text(transaction.note + '\n');
+  }
   text(divider());
 
   // 5. ITEMS

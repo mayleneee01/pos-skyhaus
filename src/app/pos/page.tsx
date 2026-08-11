@@ -21,6 +21,7 @@ export default function POSPage() {
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'TRANSFER' | 'QRIS' | 'QRIS_EDC'>('CASH');
   const [cashReceived, setCashReceived] = useState('');
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [customerName, setCustomerName] = useState('');
   const [showReceipt, setShowReceipt] = useState(false);
   const [lastTransaction, setLastTransaction] = useState<TransactionWithDetails | null>(null);
   const [todayTransactions, setTodayTransactions] = useState<TransactionWithDetails[]>([]);
@@ -228,6 +229,9 @@ export default function POSPage() {
         }),
         ...(paymentMethod === 'QRIS_EDC' && {
           edcTerminalId: selectedEdcId
+        }),
+        ...(customerName && {
+          note: `Pemesan: ${customerName}`
         }),
       };
 
@@ -592,6 +596,17 @@ export default function POSPage() {
                       </div>
                     </div>
                   )}
+
+                  <div className="form-group" style={{ marginTop: 'var(--space-md)' }}>
+                    <label className="form-label">Nama Pemesan (Opsional)</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="Masukkan nama pemesan..." 
+                      value={customerName} 
+                      onChange={(e) => setCustomerName(e.target.value)} 
+                    />
+                  </div>
 
                   <button
                     className="btn btn-primary btn-lg btn-full"
