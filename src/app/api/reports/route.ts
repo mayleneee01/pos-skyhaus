@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { auth } from '@/lib/auth';
+import { getWibRangeFromDateString } from '@/lib/utils';
 
 // GET /api/reports — Get report data
 export async function GET(request: NextRequest) {
@@ -23,10 +24,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'startDate dan endDate wajib diisi' }, { status: 400 });
     }
 
-    const start = new Date(startDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999);
+    const { start } = getWibRangeFromDateString(startDate);
+    const { end } = getWibRangeFromDateString(endDate);
 
     const transactions = await prisma.transaction.findMany({
       where: {

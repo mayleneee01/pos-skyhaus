@@ -67,44 +67,63 @@ export function generateInvoiceNo(sequence: number): string {
 }
 
 /**
- * Get start and end of today
+ * Helper: Parse 'YYYY-MM-DD' and return Date objects representing 00:00:00 to 23:59:59 in WIB (UTC+7)
  */
-export function getTodayRange(): { start: Date; end: Date } {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const end = new Date();
-  end.setHours(23, 59, 59, 999);
+export function getWibRangeFromDateString(dateStr: string): { start: Date; end: Date } {
+  const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
+  
+  // WIB is UTC+7.
+  // 00:00 WIB today = 17:00 UTC previous day (which is -7 hours from 00:00 UTC today)
+  const start = new Date(Date.UTC(year, month - 1, day, -7, 0, 0, 0));
+  // 23:59:59.999 WIB today = 16:59:59.999 UTC today
+  const end = new Date(Date.UTC(year, month - 1, day, 16, 59, 59, 999));
+  
   return { start, end };
 }
 
 /**
- * Get date range for a specific period
+ * Get start and end of today in WIB (UTC+7)
+ */
+export function getTodayRange(): { start: Date; end: Date } {
+  const now = new Date();
+  // Geser waktu ke WIB (+7 jam dari UTC) untuk mendapatkan tanggal yang benar di Indonesia
+  const wibTime = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+  const dateStr = wibTime.toISOString().slice(0, 10);
+  
+  return getWibRangeFromDateString(dateStr);
+}
+
+/**
+ * Get date range for a specific period (WIB aligned)
  */
 export function getDateRange(period: 'daily' | 'weekly' | 'monthly', date?: Date): { start: Date; end: Date } {
-  const base = date ? new Date(date) : new Date();
-
+  const now = date ? new Date(date) : new Date();
+  // Geser ke WIB
+  const wibTime = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+  
   switch (period) {
     case 'daily': {
-      const start = new Date(base);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(base);
-      end.setHours(23, 59, 59, 999);
-      return { start, end };
+      return getWibRangeFromDateString(wibTime.toISOString().slice(0, 10));
     }
     case 'weekly': {
-      const start = new Date(base);
-      start.setDate(start.getDate() - start.getDay());
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(start);
-      end.setDate(end.getDate() + 6);
-      end.setHours(23, 59, 59, 999);
-      return { start, end };
+      // Cari hari minggu (0) sebagai awal minggu di WIB
+      const startWib = new Date(wibTime);
+      startWib.setDate(startWib.getDate() - startWib.getDay());
+      const endWib = new Date(startWib);
+      endWib.setDate(endWib.getDate() + 6);
+      
+      const startRange = getWibRangeFromDateString(startWib.toISOString().slice(0, 10));
+      const endRange = getWibRangeFromDateString(endWib.toISOString().slice(0, 10));
+      return { start: startRange.start, end: endRange.end };
     }
     case 'monthly': {
-      const start = new Date(base.getFullYear(), base.getMonth(), 1);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(base.getFullYear(), base.getMonth() + 1, 0);
-      end.setHours(23, 59, 59, 999);
+      const year = wibTime.getUTCFullYear();
+      const month = wibTime.getUTCMonth();
+      
+      const start = new Date(Date.UTC(year, month, 1, -7, 0, 0, 0));
+      const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+      const end = new Date(Date.UTC(year, month, lastDay, 16, 59, 59, 999));
+      
       return { start, end };
     }
   }

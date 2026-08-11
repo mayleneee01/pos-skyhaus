@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { auth } from '@/lib/auth';
-import { generateInvoiceNo, getTodayRange } from '@/lib/utils';
+import { generateInvoiceNo, getTodayRange, getWibRangeFromDateString } from '@/lib/utils';
 
 // GET /api/transactions — Get transactions with filters
 export async function GET(request: NextRequest) {
@@ -21,10 +21,12 @@ export async function GET(request: NextRequest) {
       const { start, end } = getTodayRange();
       dateFilter = { createdAt: { gte: start, lte: end } };
     } else if (startDate && endDate) {
+      const { start, end } = getWibRangeFromDateString(startDate);
+      const { end: endObj } = getWibRangeFromDateString(endDate);
       dateFilter = {
         createdAt: {
-          gte: new Date(startDate),
-          lte: new Date(endDate + 'T23:59:59.999Z'),
+          gte: start,
+          lte: endObj,
         },
       };
     }
