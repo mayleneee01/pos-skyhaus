@@ -10,8 +10,13 @@ export default function ReportsPage() {
   const [report, setReport] = useState<ReportSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const getLocalDateString = (d: Date = new Date()) => {
+    const offset = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - offset).toISOString().split('T')[0];
+  };
+
+  const [startDate, setStartDate] = useState(getLocalDateString());
+  const [endDate, setEndDate] = useState(getLocalDateString());
   const [selectedTx, setSelectedTx] = useState<TransactionWithDetails | null>(null);
 
   const productSales = React.useMemo(() => {
@@ -64,8 +69,8 @@ export default function ReportsPage() {
         break;
     }
 
-    setStartDate(start.toISOString().split('T')[0]);
-    setEndDate(end.toISOString().split('T')[0]);
+    setStartDate(getLocalDateString(start));
+    setEndDate(getLocalDateString(end));
   }, [period]);
 
   useEffect(() => {
