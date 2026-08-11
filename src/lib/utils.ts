@@ -58,10 +58,12 @@ export function formatTime(date: Date | string): string {
  * @example generateInvoiceNo() => "INV-20260807-0001"
  */
 export function generateInvoiceNo(sequence: number): string {
-  const today = new Date();
-  const dateStr = today.getFullYear().toString() +
-    (today.getMonth() + 1).toString().padStart(2, '0') +
-    today.getDate().toString().padStart(2, '0');
+  const now = new Date();
+  const wibTime = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+  
+  const dateStr = wibTime.getUTCFullYear().toString() +
+    (wibTime.getUTCMonth() + 1).toString().padStart(2, '0') +
+    wibTime.getUTCDate().toString().padStart(2, '0');
   const seqStr = sequence.toString().padStart(4, '0');
   return `INV-${dateStr}-${seqStr}`;
 }
