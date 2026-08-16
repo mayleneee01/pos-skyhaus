@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
 
     const transactions = await prisma.transaction.findMany({
       where: {
-        status: 'COMPLETED',
+        status: { in: ['COMPLETED', 'VOIDED'] },
         ...dateFilter,
       },
       include: {
@@ -151,6 +151,70 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, data: transaction }, { status: 201 });
   } catch (error) {
     console.error('POST /api/transactions error:', error);
+    return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+// PATCH /api/transactions — Void (batalkan) a transaction
+export async function PATCH(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { transactionId, reason } = body;
+
+    if (!transactionId) {
+      return NextResponse.json({ success: false, error: 'transactionId wajib diisi' }, { status: 400 });
+    }
+
+    // Find the transaction
+    const existing = await prisma.transaction.findUnique({
+      where: { id: transactionId },
+      include: { items: true },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ success: false, error: 'Transaksi tidak ditemukan' }, { status: 404 });
+    }
+
+    if (existing.status !== 'COMPLETED') {
+      return NextResponse.json({ success: false, error: 'Hanya transaksi COMPLETED yang bisa dibatalkan' }, { status: 400 });
+    }
+
+    // Void the transaction and restore stock in a database transaction
+    const voided = await prisma.$transaction(async (tx) => {
+      // 1. Update status to VOIDED
+      const updated = await tx.transaction.update({
+        where: { id: transactionId },
+        data: {
+          status: 'VOIDED',
+          note: reason
+            ? `[DIBATALKAN] ${reason}${existing.note ? ' | ' + existing.note : ''}`
+            : `[DIBATALKAN]${existing.note ? ' | ' + existing.note : ''}`,
+        },
+        include: {
+          user: { select: { name: true } },
+          items: true,
+        },
+      });
+
+      // 2. Restore stock for each item
+      for (const item of existing.items) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stock: { increment: item.quantity } },
+        });
+      }
+
+      return updated;
+    });
+
+    return NextResponse.json({ success: true, data: voided });
+  } catch (error) {
+    console.error('PATCH /api/transactions error:', error);
     return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
   }
 }

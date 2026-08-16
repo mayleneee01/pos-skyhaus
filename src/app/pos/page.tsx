@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { formatRupiah } from '@/lib/utils';
-import { History, ShoppingCart, CreditCard, Banknote, Building, Smartphone, AlertTriangle, CheckCircle, Printer, LayoutDashboard, BarChart3 } from 'lucide-react';
+import { History, ShoppingCart, CreditCard, Banknote, Building, Smartphone, AlertTriangle, CheckCircle, Printer, LayoutDashboard, BarChart3, XCircle } from 'lucide-react';
 import FullscreenToggle from '@/components/FullscreenToggle';
 import { printWithRawBT } from '@/lib/rawbt';
 import type { ProductWithCategory, CartItem, StoreSettingData, CreateTransactionPayload, TransactionWithDetails } from '@/types';
@@ -31,6 +31,11 @@ export default function POSPage() {
   const [edcTransactionId, setEdcTransactionId] = useState<string | null>(null);
   const [edcTerminals, setEdcTerminals] = useState<any[]>([]);
   const [selectedEdcId, setSelectedEdcId] = useState<string>('');
+
+  // Void transaction states
+  const [voidConfirm, setVoidConfirm] = useState<TransactionWithDetails | null>(null);
+  const [voidReason, setVoidReason] = useState('');
+  const [voidLoading, setVoidLoading] = useState(false);
 
   // Calculate totals
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -201,6 +206,37 @@ export default function POSPage() {
   };
 
   const clearCart = () => setCart([]);
+
+  // Void (batalkan) transaksi
+  const voidTransaction = async () => {
+    if (!voidConfirm) return;
+    setVoidLoading(true);
+    try {
+      const res = await fetch('/api/transactions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionId: voidConfirm.id,
+          reason: voidReason || 'Dibatalkan oleh kasir',
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`Transaksi ${voidConfirm.invoiceNo} berhasil dibatalkan!`);
+        setVoidConfirm(null);
+        setVoidReason('');
+        fetchTodayTransactions();
+        fetchProducts(); // refresh stock
+      } else {
+        alert(data.error || 'Gagal membatalkan transaksi');
+      }
+    } catch (error) {
+      console.error('Void error:', error);
+      alert('Gagal membatalkan transaksi');
+    } finally {
+      setVoidLoading(false);
+    }
+  };
 
   // Process payment
   const processPayment = async () => {
@@ -743,6 +779,7 @@ export default function POSPage() {
                         <th>Items</th>
                         <th>Total</th>
                         <th>Metode</th>
+                        <th>Status</th>
                         <th>Aksi</th>
                       </tr>
                     </thead>
@@ -761,12 +798,30 @@ export default function POSPage() {
                           <td style={{ fontWeight: 700 }}>{formatRupiah(tx.grandTotal)}</td>
                           <td><span className="badge badge-primary">{tx.paymentMethod}</span></td>
                           <td>
-                            <button
-                              className="btn btn-secondary btn-sm"
-                              onClick={() => printWithRawBT(tx, settings || undefined)}
-                            >
-                              <Printer size={14} /> Cetak
-                            </button>
+                            {tx.status === 'VOIDED' ? (
+                              <span className="badge" style={{ background: 'var(--color-danger-bg, #fef2f2)', color: 'var(--color-danger, #dc2626)', fontWeight: 700 }}>BATAL</span>
+                            ) : (
+                              <span className="badge" style={{ background: 'var(--color-success-bg, #f0fdf4)', color: 'var(--color-success, #16a34a)', fontWeight: 700 }}>SELESAI</span>
+                            )}
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                              <button
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => printWithRawBT(tx, settings || undefined)}
+                              >
+                                <Printer size={14} /> Cetak
+                              </button>
+                              {tx.status !== 'VOIDED' && (
+                                <button
+                                  className="btn btn-sm"
+                                  style={{ background: 'var(--color-danger-bg, #fef2f2)', color: 'var(--color-danger, #dc2626)', border: '1px solid var(--color-danger, #dc2626)' }}
+                                  onClick={() => { setVoidConfirm(tx); setVoidReason(''); }}
+                                >
+                                  <XCircle size={14} /> Batalkan
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -774,6 +829,79 @@ export default function POSPage() {
                   </table>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VOID CONFIRMATION MODAL */}
+      {voidConfirm && (
+        <div className="modal-backdrop" onClick={() => !voidLoading && setVoidConfirm(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+            <div className="modal-header">
+              <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-danger, #dc2626)' }}>
+                <XCircle size={20} /> Batalkan Transaksi
+              </h3>
+              <button className="btn btn-ghost btn-icon" onClick={() => setVoidConfirm(null)} disabled={voidLoading}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            </div>
+            <div className="modal-body">
+              <div style={{ background: 'var(--color-danger-bg, #fef2f2)', border: '1px solid var(--color-danger, #dc2626)', borderRadius: 'var(--radius-md)', padding: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
+                <p style={{ fontWeight: 700, color: 'var(--color-danger, #dc2626)', marginBottom: '8px' }}>
+                  <AlertTriangle size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
+                  Peringatan: Tindakan ini tidak bisa dibatalkan!
+                </p>
+                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)' }}>
+                  Uang dari transaksi ini akan ditarik dari laporan keuangan dan stok produk akan dikembalikan.
+                </p>
+              </div>
+
+              <div style={{ marginBottom: 'var(--space-lg)' }}>
+                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '4px' }}>Transaksi yang akan dibatalkan:</p>
+                <div style={{ background: 'var(--color-bg-secondary)', padding: 'var(--space-md)', borderRadius: 'var(--radius-md)' }}>
+                  <p style={{ fontWeight: 700 }}>{voidConfirm.invoiceNo}</p>
+                  <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)' }}>
+                    {voidConfirm.items.map(i => `${i.quantity}x ${i.productName}`).join(', ')}
+                  </p>
+                  <p style={{ fontWeight: 700, fontSize: 'var(--text-lg)', color: 'var(--color-primary)', marginTop: '4px' }}>
+                    {formatRupiah(voidConfirm.grandTotal)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Alasan Pembatalan (Opsional)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Contoh: Pelanggan ganti pesanan..."
+                  value={voidReason}
+                  onChange={(e) => setVoidReason(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 'var(--space-sm)', marginTop: 'var(--space-lg)' }}>
+                <button
+                  className="btn btn-secondary btn-full"
+                  onClick={() => setVoidConfirm(null)}
+                  disabled={voidLoading}
+                >
+                  Kembali
+                </button>
+                <button
+                  className="btn btn-full"
+                  style={{ background: 'var(--color-danger, #dc2626)', color: 'white', border: 'none' }}
+                  onClick={voidTransaction}
+                  disabled={voidLoading}
+                >
+                  {voidLoading ? (
+                    <><span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> Memproses...</>
+                  ) : (
+                    <><XCircle size={16} /> Ya, Batalkan Transaksi</>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
