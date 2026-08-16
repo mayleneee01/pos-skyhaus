@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     const transactions = await prisma.transaction.findMany({
       where: {
-        status: 'COMPLETED',
+        status: { in: ['COMPLETED', 'VOIDED'] },
         createdAt: { gte: start, lte: end },
       },
       include: {
@@ -47,30 +47,32 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
 
-    const totalRevenue = transactions.reduce((sum, t) => sum + t.grandTotal, 0);
-    const totalTransactions = transactions.length;
+    // Only count COMPLETED transactions for financial totals
+    const completedTx = transactions.filter(t => t.status === 'COMPLETED');
+    const totalRevenue = completedTx.reduce((sum, t) => sum + t.grandTotal, 0);
+    const totalTransactions = completedTx.length;
     const avgTransaction = totalTransactions > 0 ? Math.round(totalRevenue / totalTransactions) : 0;
 
     const paymentBreakdown = {
       CASH: {
-        amount: transactions.filter(t => t.paymentMethod === 'CASH').reduce((sum, t) => sum + t.grandTotal, 0),
-        count: transactions.filter(t => t.paymentMethod === 'CASH').length
+        amount: completedTx.filter(t => t.paymentMethod === 'CASH').reduce((sum, t) => sum + t.grandTotal, 0),
+        count: completedTx.filter(t => t.paymentMethod === 'CASH').length
       },
       TRANSFER: {
-        amount: transactions.filter(t => t.paymentMethod === 'TRANSFER').reduce((sum, t) => sum + t.grandTotal, 0),
-        count: transactions.filter(t => t.paymentMethod === 'TRANSFER').length
+        amount: completedTx.filter(t => t.paymentMethod === 'TRANSFER').reduce((sum, t) => sum + t.grandTotal, 0),
+        count: completedTx.filter(t => t.paymentMethod === 'TRANSFER').length
       },
       QRIS: {
-        amount: transactions.filter(t => t.paymentMethod === 'QRIS').reduce((sum, t) => sum + t.grandTotal, 0),
-        count: transactions.filter(t => t.paymentMethod === 'QRIS').length
+        amount: completedTx.filter(t => t.paymentMethod === 'QRIS').reduce((sum, t) => sum + t.grandTotal, 0),
+        count: completedTx.filter(t => t.paymentMethod === 'QRIS').length
       },
       QRIS_EDC: {
-        amount: transactions.filter(t => t.paymentMethod === 'QRIS_EDC').reduce((sum, t) => sum + t.grandTotal, 0),
-        count: transactions.filter(t => t.paymentMethod === 'QRIS_EDC').length
+        amount: completedTx.filter(t => t.paymentMethod === 'QRIS_EDC').reduce((sum, t) => sum + t.grandTotal, 0),
+        count: completedTx.filter(t => t.paymentMethod === 'QRIS_EDC').length
       },
     };
 
-    const edcBreakdown = transactions
+    const edcBreakdown = completedTx
       .filter(t => t.paymentMethod === 'QRIS_EDC' && t.edcName)
       .reduce((acc, t) => {
         if (!t.edcName) return acc;

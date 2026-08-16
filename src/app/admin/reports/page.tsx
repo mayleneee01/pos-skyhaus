@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { formatRupiah, formatDateTime } from '@/lib/utils';
-import { Table, FileText, DollarSign, BarChart, Banknote, Building, Smartphone, Eye, CreditCard } from 'lucide-react';
+import { Table, FileText, DollarSign, BarChart, Banknote, Building, Smartphone, Eye, CreditCard, XCircle, AlertTriangle } from 'lucide-react';
 import type { ReportSummary, TransactionWithDetails } from '@/types';
 
 export default function ReportsPage() {
@@ -17,6 +17,41 @@ export default function ReportsPage() {
   const [startDate, setStartDate] = useState(getLocalDateString());
   const [endDate, setEndDate] = useState(getLocalDateString());
   const [selectedTx, setSelectedTx] = useState<TransactionWithDetails | null>(null);
+
+  // Void transaction states
+  const [voidConfirm, setVoidConfirm] = useState<TransactionWithDetails | null>(null);
+  const [voidReason, setVoidReason] = useState('');
+  const [voidLoading, setVoidLoading] = useState(false);
+
+  // Void (batalkan) transaksi
+  const voidTransaction = async () => {
+    if (!voidConfirm) return;
+    setVoidLoading(true);
+    try {
+      const res = await fetch('/api/transactions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionId: voidConfirm.id,
+          reason: voidReason || 'Dibatalkan oleh admin',
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`Transaksi ${voidConfirm.invoiceNo} berhasil dibatalkan! Laporan akan diperbarui.`);
+        setVoidConfirm(null);
+        setVoidReason('');
+        fetchReport(); // refresh report data
+      } else {
+        alert(data.error || 'Gagal membatalkan transaksi');
+      }
+    } catch (error) {
+      console.error('Void error:', error);
+      alert('Gagal membatalkan transaksi');
+    } finally {
+      setVoidLoading(false);
+    }
+  };
 
   const productSales = React.useMemo(() => {
     if (!report?.transactions) return [];
@@ -308,7 +343,8 @@ export default function ReportsPage() {
                     <th>Items</th>
                     <th>Total</th>
                     <th>Metode</th>
-                    <th>Detail</th>
+                    <th>Status</th>
+                    <th>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -318,21 +354,39 @@ export default function ReportsPage() {
                       <td style={{ fontSize: 'var(--text-xs)' }}>{formatDateTime(tx.createdAt)}</td>
                       <td>{tx.user.name}</td>
                       <td>{tx.items.length} item</td>
-                      <td style={{ fontWeight: 700 }}>{formatRupiah(tx.grandTotal)}</td>
+                      <td style={{ fontWeight: 700, textDecoration: tx.status === 'VOIDED' ? 'line-through' : 'none', opacity: tx.status === 'VOIDED' ? 0.5 : 1 }}>{formatRupiah(tx.grandTotal)}</td>
                       <td>
                         <span className="badge badge-primary">{tx.paymentMethod}</span>
                         {tx.edcName && <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '4px' }}>{tx.edcName}</div>}
                       </td>
                       <td>
-                        <button className="btn btn-ghost btn-sm" onClick={() => setSelectedTx(tx)}>
-                          <Eye size={16} />
-                        </button>
+                        {tx.status === 'VOIDED' ? (
+                          <span className="badge" style={{ background: '#fef2f2', color: '#dc2626', fontWeight: 700 }}>BATAL</span>
+                        ) : (
+                          <span className="badge" style={{ background: '#f0fdf4', color: '#16a34a', fontWeight: 700 }}>SELESAI</span>
+                        )}
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <button className="btn btn-ghost btn-sm" onClick={() => setSelectedTx(tx)}>
+                            <Eye size={16} />
+                          </button>
+                          {tx.status !== 'VOIDED' && (
+                            <button
+                              className="btn btn-sm"
+                              style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #dc2626', fontSize: 'var(--text-xs)' }}
+                              onClick={() => { setVoidConfirm(tx); setVoidReason(''); }}
+                            >
+                              <XCircle size={14} /> Batalkan
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
                   {report.transactions.length === 0 && (
                     <tr>
-                      <td colSpan={7} style={{ textAlign: 'center', padding: 'var(--space-2xl)', color: 'var(--color-text-muted)' }}>
+                      <td colSpan={8} style={{ textAlign: 'center', padding: 'var(--space-2xl)', color: 'var(--color-text-muted)' }}>
                         Tidak ada transaksi pada periode ini
                       </td>
                     </tr>
@@ -398,6 +452,54 @@ export default function ReportsPage() {
                   <span>TOTAL</span>
                   <span style={{ color: 'var(--color-primary-light)' }}>{formatRupiah(selectedTx.grandTotal)}</span>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* VOID CONFIRMATION MODAL */}
+      {voidConfirm && (
+        <div className="modal-backdrop" onClick={() => !voidLoading && setVoidConfirm(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+            <div className="modal-header">
+              <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#dc2626' }}>
+                <XCircle size={20} /> Batalkan Transaksi
+              </h3>
+              <button className="btn btn-ghost btn-icon" onClick={() => setVoidConfirm(null)} disabled={voidLoading}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            </div>
+            <div className="modal-body">
+              <div style={{ background: '#fef2f2', border: '1px solid #dc2626', borderRadius: 'var(--radius-md)', padding: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
+                <p style={{ fontWeight: 700, color: '#dc2626', marginBottom: '8px' }}>
+                  <AlertTriangle size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
+                  Peringatan: Tindakan ini tidak bisa dibatalkan!
+                </p>
+                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)' }}>
+                  Uang dari transaksi ini akan ditarik dari laporan keuangan dan stok produk akan dikembalikan.
+                </p>
+              </div>
+              <div style={{ marginBottom: 'var(--space-lg)' }}>
+                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '4px' }}>Transaksi yang akan dibatalkan:</p>
+                <div style={{ background: 'var(--color-bg-secondary)', padding: 'var(--space-md)', borderRadius: 'var(--radius-md)' }}>
+                  <p style={{ fontWeight: 700 }}>{voidConfirm.invoiceNo}</p>
+                  <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)' }}>
+                    {voidConfirm.items.map(i => `${i.quantity}x ${i.productName}`).join(', ')}
+                  </p>
+                  <p style={{ fontWeight: 700, fontSize: 'var(--text-lg)', color: 'var(--color-primary)', marginTop: '4px' }}>
+                    {formatRupiah(voidConfirm.grandTotal)}
+                  </p>
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Alasan Pembatalan (Opsional)</label>
+                <input type="text" className="form-input" placeholder="Contoh: Pelanggan ganti pesanan..." value={voidReason} onChange={(e) => setVoidReason(e.target.value)} />
+              </div>
+              <div style={{ display: 'flex', gap: 'var(--space-sm)', marginTop: 'var(--space-lg)' }}>
+                <button className="btn btn-secondary btn-full" onClick={() => setVoidConfirm(null)} disabled={voidLoading}>Kembali</button>
+                <button className="btn btn-full" style={{ background: '#dc2626', color: 'white', border: 'none' }} onClick={voidTransaction} disabled={voidLoading}>
+                  {voidLoading ? (<><span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> Memproses...</>) : (<><XCircle size={16} /> Ya, Batalkan Transaksi</>)}
+                </button>
               </div>
             </div>
           </div>
