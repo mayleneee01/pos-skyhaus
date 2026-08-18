@@ -105,50 +105,45 @@ export async function POST(request: NextRequest) {
     });
     const invoiceNo = generateInvoiceNo(todayCount + 1);
 
-    // Create transaction in a database transaction
-    const transaction = await prisma.$transaction(async (tx) => {
-      // 1. Create the transaction
-      const newTransaction = await tx.transaction.create({
-        data: {
-          invoiceNo,
-          subtotal,
-          taxRate: taxRate || 0,
-          taxAmount: taxAmount || 0,
-          grandTotal,
-          paymentMethod,
-          status: 'COMPLETED',
-          cashReceived: cashReceived || null,
-          changeAmount: changeAmount || null,
-          note: note || null,
-          userId: session.user.id as string,
-          items: {
-            create: items.map((item: { productId: string; quantity: number; unitPrice: number; name?: string; productName?: string }) => ({
-              productId: item.productId,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              subtotal: item.quantity * item.unitPrice,
-              productName: item.name || item.productName || 'Unknown Product',
-            })),
-          },
+    // Create the transaction record
+    const newTransaction = await prisma.transaction.create({
+      data: {
+        invoiceNo,
+        subtotal,
+        taxRate: taxRate || 0,
+        taxAmount: taxAmount || 0,
+        grandTotal,
+        paymentMethod,
+        status: 'COMPLETED',
+        cashReceived: cashReceived || null,
+        changeAmount: changeAmount || null,
+        note: note || null,
+        userId: session.user.id as string,
+        items: {
+          create: items.map((item: { productId: string; quantity: number; unitPrice: number; name?: string; productName?: string }) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            subtotal: item.quantity * item.unitPrice,
+            productName: item.name || item.productName || 'Unknown Product',
+          })),
         },
-        include: {
-          user: { select: { name: true } },
-          items: true,
-        },
-      });
-
-      // 2. Reduce stock for each item
-      for (const item of items) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { stock: { decrement: item.quantity } },
-        });
-      }
-
-      return newTransaction;
+      },
+      include: {
+        user: { select: { name: true } },
+        items: true,
+      },
     });
 
-    return NextResponse.json({ success: true, data: transaction }, { status: 201 });
+    // Reduce stock for each item (separate queries — PgBouncer safe)
+    for (const item of items) {
+      await prisma.product.update({
+        where: { id: item.productId },
+        data: { stock: { decrement: item.quantity } },
+      });
+    }
+
+    return NextResponse.json({ success: true, data: newTransaction }, { status: 201 });
   } catch (error: any) {
     console.error('POST /api/transactions error:', error);
     return NextResponse.json({ success: false, error: error?.message || 'Internal Server Error' }, { status: 500 });
@@ -184,37 +179,33 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Hanya transaksi COMPLETED yang bisa dibatalkan' }, { status: 400 });
     }
 
-    // Void the transaction and restore stock in a database transaction
-    const voided = await prisma.$transaction(async (tx) => {
-      // 1. Update status to VOIDED
-      const updated = await tx.transaction.update({
-        where: { id: transactionId },
-        data: {
-          status: 'VOIDED',
-          note: reason
-            ? `[DIBATALKAN] ${reason}${existing.note ? ' | ' + existing.note : ''}`
-            : `[DIBATALKAN]${existing.note ? ' | ' + existing.note : ''}`,
-        },
-        include: {
-          user: { select: { name: true } },
-          items: true,
-        },
-      });
-
-      // 2. Restore stock for each item
-      for (const item of existing.items) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { stock: { increment: item.quantity } },
-        });
-      }
-
-      return updated;
+    // Void the transaction — sequential operations (PgBouncer safe)
+    // 1. Update status to VOIDED
+    const updated = await prisma.transaction.update({
+      where: { id: transactionId },
+      data: {
+        status: 'VOIDED',
+        note: reason
+          ? `[DIBATALKAN] ${reason}${existing.note ? ' | ' + existing.note : ''}`
+          : `[DIBATALKAN]${existing.note ? ' | ' + existing.note : ''}`,
+      },
+      include: {
+        user: { select: { name: true } },
+        items: true,
+      },
     });
 
-    return NextResponse.json({ success: true, data: voided });
-  } catch (error) {
+    // 2. Restore stock for each item
+    for (const item of existing.items) {
+      await prisma.product.update({
+        where: { id: item.productId },
+        data: { stock: { increment: item.quantity } },
+      });
+    }
+
+    return NextResponse.json({ success: true, data: updated });
+  } catch (error: any) {
     console.error('PATCH /api/transactions error:', error);
-    return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: error?.message || 'Internal Server Error' }, { status: 500 });
   }
 }
