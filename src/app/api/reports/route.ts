@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     const transactions = await prisma.transaction.findMany({
       where: {
-        status: { in: ['COMPLETED', 'VOIDED'] },
+        status: { in: ['COMPLETED', 'VOIDED', 'UNPAID'] },
         createdAt: { gte: start, lte: end },
       },
       include: {

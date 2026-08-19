@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
 
     const transactions = await prisma.transaction.findMany({
       where: {
-        status: { in: ['COMPLETED', 'VOIDED'] },
+        status: { in: ['COMPLETED', 'VOIDED', 'UNPAID'] },
         ...dateFilter,
       },
       include: {
@@ -74,13 +74,13 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { items, subtotal, taxRate, taxAmount, grandTotal, paymentMethod, cashReceived, changeAmount, note } = body;
+    const { items, subtotal, taxRate, taxAmount, grandTotal, paymentMethod, cashReceived, changeAmount, note, payLater } = body;
 
     if (!items || items.length === 0) {
       return NextResponse.json({ success: false, error: 'Keranjang kosong' }, { status: 400 });
     }
 
-    if (!paymentMethod || !['CASH', 'TRANSFER', 'QRIS'].includes(paymentMethod)) {
+    if (!payLater && (!paymentMethod || !['CASH', 'TRANSFER', 'QRIS'].includes(paymentMethod))) {
       return NextResponse.json({ success: false, error: 'Metode pembayaran tidak valid' }, { status: 400 });
     }
 
@@ -113,10 +113,10 @@ export async function POST(request: NextRequest) {
         taxRate: taxRate || 0,
         taxAmount: taxAmount || 0,
         grandTotal,
-        paymentMethod,
-        status: 'COMPLETED',
-        cashReceived: cashReceived || null,
-        changeAmount: changeAmount || null,
+        paymentMethod: payLater ? 'CASH' : paymentMethod, // Default CASH for pay later, will be updated on settlement
+        status: payLater ? 'UNPAID' : 'COMPLETED',
+        cashReceived: payLater ? null : (cashReceived || null),
+        changeAmount: payLater ? null : (changeAmount || null),
         note: note || null,
         userId: session.user.id as string,
         items: {
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PATCH /api/transactions — Void (batalkan) a transaction
+// PATCH /api/transactions — Void or Settle a transaction
 export async function PATCH(request: NextRequest) {
   try {
     const session = await auth();
@@ -159,7 +159,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { transactionId, reason } = body;
+    const { transactionId, action, reason, settleMethod } = body;
 
     if (!transactionId) {
       return NextResponse.json({ success: false, error: 'transactionId wajib diisi' }, { status: 400 });
@@ -175,12 +175,39 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Transaksi tidak ditemukan' }, { status: 404 });
     }
 
-    if (existing.status !== 'COMPLETED') {
-      return NextResponse.json({ success: false, error: 'Hanya transaksi COMPLETED yang bisa dibatalkan' }, { status: 400 });
+    // === SETTLE (Lunasi) ===
+    if (action === 'settle') {
+      if (existing.status !== 'UNPAID') {
+        return NextResponse.json({ success: false, error: 'Hanya transaksi UNPAID yang bisa dilunasi' }, { status: 400 });
+      }
+
+      if (!settleMethod || !['CASH', 'TRANSFER', 'QRIS'].includes(settleMethod)) {
+        return NextResponse.json({ success: false, error: 'Metode pembayaran pelunasan tidak valid' }, { status: 400 });
+      }
+
+      const settled = await prisma.transaction.update({
+        where: { id: transactionId },
+        data: {
+          status: 'COMPLETED',
+          paymentMethod: settleMethod,
+          paidAt: new Date(),
+          paidMethod: settleMethod,
+        },
+        include: {
+          user: { select: { name: true } },
+          items: true,
+        },
+      });
+
+      return NextResponse.json({ success: true, data: settled });
     }
 
-    // Void the transaction — sequential operations (PgBouncer safe)
-    // 1. Update status to VOIDED
+    // === VOID (Batalkan) ===
+    if (existing.status !== 'COMPLETED' && existing.status !== 'UNPAID') {
+      return NextResponse.json({ success: false, error: 'Transaksi ini tidak bisa dibatalkan' }, { status: 400 });
+    }
+
+    // Update status to VOIDED
     const updated = await prisma.transaction.update({
       where: { id: transactionId },
       data: {
@@ -195,7 +222,7 @@ export async function PATCH(request: NextRequest) {
       },
     });
 
-    // 2. Restore stock for each item
+    // Restore stock for each item
     for (const item of existing.items) {
       await prisma.product.update({
         where: { id: item.productId },

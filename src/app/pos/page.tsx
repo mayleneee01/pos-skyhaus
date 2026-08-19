@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { formatRupiah } from '@/lib/utils';
-import { History, ShoppingCart, CreditCard, Banknote, Building, Smartphone, AlertTriangle, CheckCircle, Printer, LayoutDashboard, BarChart3, XCircle } from 'lucide-react';
+import { History, ShoppingCart, CreditCard, Banknote, Building, Smartphone, AlertTriangle, CheckCircle, Printer, LayoutDashboard, BarChart3, XCircle, Clock, DollarSign } from 'lucide-react';
 import FullscreenToggle from '@/components/FullscreenToggle';
 import { printWithRawBT } from '@/lib/rawbt';
 import type { ProductWithCategory, CartItem, StoreSettingData, CreateTransactionPayload, TransactionWithDetails } from '@/types';
@@ -18,7 +18,7 @@ export default function POSPage() {
   const [settings, setSettings] = useState<StoreSettingData | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'TRANSFER' | 'QRIS' | 'QRIS_EDC'>('CASH');
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'TRANSFER' | 'QRIS' | 'QRIS_EDC' | 'PAY_LATER'>('CASH');
   const [cashReceived, setCashReceived] = useState('');
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [customerName, setCustomerName] = useState('');
@@ -36,6 +36,11 @@ export default function POSPage() {
   const [voidConfirm, setVoidConfirm] = useState<TransactionWithDetails | null>(null);
   const [voidReason, setVoidReason] = useState('');
   const [voidLoading, setVoidLoading] = useState(false);
+
+  // Settle (lunasi) transaction states
+  const [settleConfirm, setSettleConfirm] = useState<TransactionWithDetails | null>(null);
+  const [settleMethod, setSettleMethod] = useState<'CASH' | 'TRANSFER' | 'QRIS'>('CASH');
+  const [settleLoading, setSettleLoading] = useState(false);
 
   // Calculate totals
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -238,6 +243,37 @@ export default function POSPage() {
     }
   };
 
+  // Settle (lunasi) transaksi
+  const settleTransaction = async () => {
+    if (!settleConfirm) return;
+    setSettleLoading(true);
+    try {
+      const res = await fetch('/api/transactions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionId: settleConfirm.id,
+          action: 'settle',
+          settleMethod,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`Transaksi ${settleConfirm.invoiceNo} berhasil dilunasi!`);
+        setSettleConfirm(null);
+        setSettleMethod('CASH');
+        fetchTodayTransactions();
+      } else {
+        alert(data.error || 'Gagal melunasi transaksi');
+      }
+    } catch (error) {
+      console.error('Settle error:', error);
+      alert('Gagal melunasi transaksi');
+    } finally {
+      setSettleLoading(false);
+    }
+  };
+
   // Process payment
   const processPayment = async () => {
     if (cart.length === 0) return;
@@ -258,7 +294,8 @@ export default function POSPage() {
         taxRate,
         taxAmount,
         grandTotal,
-        paymentMethod,
+        paymentMethod: paymentMethod === 'PAY_LATER' ? 'CASH' : paymentMethod,
+        ...(paymentMethod === 'PAY_LATER' && { payLater: true }),
         ...(paymentMethod === 'CASH' && {
           cashReceived: parseInt(cashReceived),
           changeAmount: parseInt(cashReceived) - grandTotal,
@@ -563,6 +600,7 @@ export default function POSPage() {
                     <button className={`payment-tab ${paymentMethod === 'TRANSFER' ? 'active' : ''}`} onClick={() => setPaymentMethod('TRANSFER')}><Building size={16} /> Transfer</button>
                     <button className={`payment-tab ${paymentMethod === 'QRIS' ? 'active' : ''}`} onClick={() => setPaymentMethod('QRIS')}><Smartphone size={16} /> QRIS Standar</button>
                     <button className={`payment-tab ${paymentMethod === 'QRIS_EDC' ? 'active' : ''}`} onClick={() => setPaymentMethod('QRIS_EDC')}><Smartphone size={16} /> QRIS EDC</button>
+                    <button className={`payment-tab ${paymentMethod === 'PAY_LATER' ? 'active' : ''}`} onClick={() => setPaymentMethod('PAY_LATER')} style={paymentMethod === 'PAY_LATER' ? { background: '#f59e0b', color: '#fff', borderColor: '#f59e0b' } : {}}><Clock size={16} /> Bayar Nanti</button>
                   </div>
 
                   {paymentMethod === 'CASH' && (
@@ -633,26 +671,41 @@ export default function POSPage() {
                     </div>
                   )}
 
+                  {paymentMethod === 'PAY_LATER' && (
+                    <div style={{ textAlign: 'center', padding: 'var(--space-md) 0' }}>
+                      <div style={{ background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: 'var(--radius-md)', padding: 'var(--space-md)', marginBottom: 'var(--space-md)' }}>
+                        <p style={{ fontWeight: 700, color: '#b45309', marginBottom: '4px' }}>
+                          <Clock size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
+                          Transaksi akan dicatat sebagai BELUM LUNAS
+                        </p>
+                        <p style={{ fontSize: 'var(--text-xs)', color: '#92400e' }}>Stok produk akan langsung berkurang. Pelunasan bisa dilakukan nanti dari menu Riwayat.</p>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="form-group" style={{ marginTop: 'var(--space-md)' }}>
-                    <label className="form-label">Nama Pemesan (Opsional)</label>
+                    <label className="form-label">
+                      Nama Pemesan {paymentMethod === 'PAY_LATER' ? <span style={{ color: '#dc2626' }}>*Wajib</span> : '(Opsional)'}
+                    </label>
                     <input 
                       type="text" 
                       className="form-input" 
-                      placeholder="Masukkan nama pemesan..." 
+                      placeholder={paymentMethod === 'PAY_LATER' ? 'WAJIB: Masukkan nama pemesan...' : 'Masukkan nama pemesan...'}
                       value={customerName} 
-                      onChange={(e) => setCustomerName(e.target.value)} 
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      style={paymentMethod === 'PAY_LATER' && !customerName ? { borderColor: '#dc2626' } : {}}
                     />
                   </div>
 
                   <button
                     className="btn btn-primary btn-lg btn-full"
                     onClick={processPayment}
-                    disabled={paymentLoading || (paymentMethod === 'CASH' && (!cashReceived || parseInt(cashReceived) < grandTotal))}
+                    disabled={paymentLoading || (paymentMethod === 'CASH' && (!cashReceived || parseInt(cashReceived) < grandTotal)) || (paymentMethod === 'PAY_LATER' && !customerName.trim())}
                     style={{ marginTop: 'var(--space-lg)' }}
                   >
                     {paymentLoading ? (
                       <><span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /> Memproses...</>
-                    ) : 'Proses Pembayaran'}
+                    ) : paymentMethod === 'PAY_LATER' ? (<><Clock size={18} /> Catat Bayar Nanti</>) : 'Proses Pembayaran'}
                   </button>
                 </>
               )}
@@ -799,23 +852,34 @@ export default function POSPage() {
                           <td><span className="badge badge-primary">{tx.paymentMethod}</span></td>
                           <td>
                             {tx.status === 'VOIDED' ? (
-                              <span className="badge" style={{ background: 'var(--color-danger-bg, #fef2f2)', color: 'var(--color-danger, #dc2626)', fontWeight: 700 }}>BATAL</span>
+                              <span className="badge" style={{ background: '#fef2f2', color: '#dc2626', fontWeight: 700 }}>BATAL</span>
+                            ) : tx.status === 'UNPAID' ? (
+                              <span className="badge" style={{ background: '#fffbeb', color: '#b45309', fontWeight: 700 }}>BELUM LUNAS</span>
                             ) : (
-                              <span className="badge" style={{ background: 'var(--color-success-bg, #f0fdf4)', color: 'var(--color-success, #16a34a)', fontWeight: 700 }}>SELESAI</span>
+                              <span className="badge" style={{ background: '#f0fdf4', color: '#16a34a', fontWeight: 700 }}>SELESAI</span>
                             )}
                           </td>
                           <td>
-                            <div style={{ display: 'flex', gap: '4px' }}>
+                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                               <button
                                 className="btn btn-secondary btn-sm"
                                 onClick={() => printWithRawBT(tx, settings || undefined)}
                               >
                                 <Printer size={14} /> Cetak
                               </button>
+                              {tx.status === 'UNPAID' && (
+                                <button
+                                  className="btn btn-sm"
+                                  style={{ background: '#f0fdf4', color: '#16a34a', border: '1px solid #16a34a' }}
+                                  onClick={() => { setSettleConfirm(tx); setSettleMethod('CASH'); }}
+                                >
+                                  <DollarSign size={14} /> Lunasi
+                                </button>
+                              )}
                               {tx.status !== 'VOIDED' && (
                                 <button
                                   className="btn btn-sm"
-                                  style={{ background: 'var(--color-danger-bg, #fef2f2)', color: 'var(--color-danger, #dc2626)', border: '1px solid var(--color-danger, #dc2626)' }}
+                                  style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #dc2626' }}
                                   onClick={() => { setVoidConfirm(tx); setVoidReason(''); }}
                                 >
                                   <XCircle size={14} /> Batalkan
@@ -900,6 +964,59 @@ export default function POSPage() {
                   ) : (
                     <><XCircle size={16} /> Ya, Batalkan Transaksi</>
                   )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* SETTLE (LUNASI) CONFIRMATION MODAL */}
+      {settleConfirm && (
+        <div className="modal-backdrop" onClick={() => !settleLoading && setSettleConfirm(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+            <div className="modal-header">
+              <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#16a34a' }}>
+                <DollarSign size={20} /> Lunasi Transaksi
+              </h3>
+              <button className="btn btn-ghost btn-icon" onClick={() => setSettleConfirm(null)} disabled={settleLoading}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            </div>
+            <div className="modal-body">
+              <div style={{ background: '#f0fdf4', border: '1px solid #16a34a', borderRadius: 'var(--radius-md)', padding: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
+                <p style={{ fontWeight: 700, color: '#16a34a', marginBottom: '4px' }}>
+                  Pelunasan transaksi "Bayar Nanti"
+                </p>
+                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)' }}>
+                  Setelah dilunasi, transaksi ini akan masuk ke laporan pemasukan.
+                </p>
+              </div>
+              <div style={{ marginBottom: 'var(--space-lg)' }}>
+                <div style={{ background: 'var(--color-bg-secondary)', padding: 'var(--space-md)', borderRadius: 'var(--radius-md)' }}>
+                  <p style={{ fontWeight: 700 }}>{settleConfirm.invoiceNo}</p>
+                  <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)' }}>
+                    {settleConfirm.note || ''}
+                  </p>
+                  <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)' }}>
+                    {settleConfirm.items.map(i => `${i.quantity}x ${i.productName}`).join(', ')}
+                  </p>
+                  <p style={{ fontWeight: 700, fontSize: 'var(--text-lg)', color: 'var(--color-primary)', marginTop: '4px' }}>
+                    {formatRupiah(settleConfirm.grandTotal)}
+                  </p>
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Metode Pembayaran</label>
+                <div className="payment-tabs" style={{ marginTop: '8px' }}>
+                  <button className={`payment-tab ${settleMethod === 'CASH' ? 'active' : ''}`} onClick={() => setSettleMethod('CASH')}><Banknote size={14} /> Tunai</button>
+                  <button className={`payment-tab ${settleMethod === 'TRANSFER' ? 'active' : ''}`} onClick={() => setSettleMethod('TRANSFER')}><Building size={14} /> Transfer</button>
+                  <button className={`payment-tab ${settleMethod === 'QRIS' ? 'active' : ''}`} onClick={() => setSettleMethod('QRIS')}><Smartphone size={14} /> QRIS</button>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 'var(--space-sm)', marginTop: 'var(--space-lg)' }}>
+                <button className="btn btn-secondary btn-full" onClick={() => setSettleConfirm(null)} disabled={settleLoading}>Kembali</button>
+                <button className="btn btn-full" style={{ background: '#16a34a', color: 'white', border: 'none' }} onClick={settleTransaction} disabled={settleLoading}>
+                  {settleLoading ? (<><span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> Memproses...</>) : (<><DollarSign size={16} /> Lunasi Sekarang</>)}
                 </button>
               </div>
             </div>

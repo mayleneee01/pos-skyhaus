@@ -91,6 +91,9 @@ model Transaction {
   edcTerminalId   String?           // Foreign key to EDCTerminal
   edcName         String?           // Snapshot of EDC name at the time of transaction
 
+  paidAt        DateTime?         // Waktu pelunasan (jika bayar nanti)
+  paidMethod    PaymentMethod?    // Metode bayar saat pelunasan
+
   createdAt DateTime @default(now())
 
   user        User              @relation(fields: [userId], references: [id])
@@ -114,6 +117,7 @@ enum TransactionStatus {
   COMPLETED
   FAILED
   VOIDED
+  UNPAID
 }
 
 model TransactionItem {
