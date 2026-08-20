@@ -314,23 +314,11 @@ export default function POSPage() {
           setPaymentLoading(false);
           return;
         }
-
-        const res = await fetch('/api/edc/initiate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        const data = await res.json();
-        if (data.success) {
-          setEdcTransactionId(data.transactionId);
-          setIsEdcProcessing(true);
-        } else {
-          alert(data.error || 'Gagal memulai transaksi EDC');
-        }
-        return;
+        // For standalone EDC, we just fall through to normal processing
+        // and record the selectedEdcId in the transaction.
       }
 
-      // Normal processing for Cash/Transfer/QRIS
+      // Normal processing for Cash/Transfer/QRIS/Standalone EDC
       const res = await fetch('/api/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -666,7 +654,7 @@ export default function POSPage() {
                         )}
                       </div>
                       <div style={{ textAlign: 'center', marginTop: 'var(--space-lg)', color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>
-                        <p>Klik tombol Proses untuk mengirim nominal secara otomatis ke mesin EDC yang dipilih.</p>
+                        <p>Ketik nominal pada mesin EDC secara manual. Pastikan pelanggan sudah scan QRIS di layar EDC dan saldo masuk sebelum menekan tombol Proses.</p>
                       </div>
                     </div>
                   )}
