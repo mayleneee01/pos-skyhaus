@@ -49,9 +49,9 @@ export async function POST(req: NextRequest) {
           create: items.map((item: any) => ({
             quantity: item.quantity,
             unitPrice: item.unitPrice,
-            subtotal: item.subtotal,
+            subtotal: item.quantity * item.unitPrice,
             productName: item.name,
-            productId: item.id,
+            productId: item.productId,
           })),
         },
       },
