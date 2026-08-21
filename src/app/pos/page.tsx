@@ -19,6 +19,7 @@ export default function POSPage() {
   const [showPayment, setShowPayment] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'TRANSFER' | 'QRIS' | 'QRIS_EDC' | 'PAY_LATER'>('CASH');
+  const [payLaterMethod, setPayLaterMethod] = useState<'CASH' | 'TRANSFER' | 'QRIS'>('CASH');
   const [cashReceived, setCashReceived] = useState('');
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [customerName, setCustomerName] = useState('');
@@ -294,7 +295,7 @@ export default function POSPage() {
         taxRate,
         taxAmount,
         grandTotal,
-        paymentMethod: paymentMethod === 'PAY_LATER' ? 'CASH' : paymentMethod,
+        paymentMethod: paymentMethod === 'PAY_LATER' ? payLaterMethod : paymentMethod,
         ...(paymentMethod === 'PAY_LATER' && { payLater: true }),
         ...(paymentMethod === 'CASH' && {
           cashReceived: parseInt(cashReceived),
@@ -667,6 +668,15 @@ export default function POSPage() {
                           Transaksi akan dicatat sebagai BELUM LUNAS
                         </p>
                         <p style={{ fontSize: 'var(--text-xs)', color: '#92400e' }}>Stok produk akan langsung berkurang. Pelunasan bisa dilakukan nanti dari menu Riwayat.</p>
+                      </div>
+                      
+                      <div className="form-group" style={{ marginTop: 'var(--space-md)', textAlign: 'left' }}>
+                        <label className="form-label">Rencana Metode Pembayaran (Opsional)</label>
+                        <div className="payment-tabs" style={{ marginTop: '8px' }}>
+                          <button className={`payment-tab ${payLaterMethod === 'CASH' ? 'active' : ''}`} onClick={() => setPayLaterMethod('CASH')}><Banknote size={14} /> Tunai</button>
+                          <button className={`payment-tab ${payLaterMethod === 'TRANSFER' ? 'active' : ''}`} onClick={() => setPayLaterMethod('TRANSFER')}><Building size={14} /> Transfer</button>
+                          <button className={`payment-tab ${payLaterMethod === 'QRIS' ? 'active' : ''}`} onClick={() => setPayLaterMethod('QRIS')}><Smartphone size={14} /> QRIS</button>
+                        </div>
                       </div>
                     </div>
                   )}
