@@ -412,10 +412,18 @@ export default function ReportsPage() {
                 <tbody>
                   {report.transactions.map(tx => (
                     <tr key={tx.id}>
-                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)' }}>{tx.invoiceNo}</td>
+                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)' }}>
+                        {tx.invoiceNo}
+                        {tx.note && <div style={{ fontSize: '11px', color: 'var(--color-primary)', marginTop: '4px', fontWeight: 600 }}>{tx.note}</div>}
+                      </td>
                       <td style={{ fontSize: 'var(--text-xs)' }}>{formatDateTime(tx.createdAt)}</td>
                       <td>{tx.user.name}</td>
-                      <td>{tx.items.reduce((sum: number, item: any) => sum + item.quantity, 0)} item</td>
+                      <td>
+                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{tx.items.reduce((sum: number, item: any) => sum + item.quantity, 0)} item</div>
+                        <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px', maxWidth: '180px', whiteSpace: 'normal', lineHeight: '1.4' }}>
+                          {tx.items.map((i: any) => `${i.quantity}x ${i.productName}`).join(', ')}
+                        </div>
+                      </td>
                       <td style={{ fontWeight: 700, textDecoration: tx.status === 'VOIDED' ? 'line-through' : 'none', opacity: tx.status === 'VOIDED' ? 0.5 : 1 }}>{formatRupiah(tx.grandTotal)}</td>
                       <td>
                         <span className="badge badge-primary">{tx.paymentMethod}</span>
@@ -431,26 +439,26 @@ export default function ReportsPage() {
                         )}
                       </td>
                       <td>
-                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                          <button className="btn btn-ghost btn-sm" onClick={() => setSelectedTx(tx)}>
-                            <Eye size={16} />
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          <button className="btn btn-ghost btn-sm" onClick={() => setSelectedTx(tx)} style={{ padding: '8px 12px', background: 'var(--color-bg-elevated)' }}>
+                            <Eye size={16} style={{ marginRight: '4px' }}/> Detail
                           </button>
                           {tx.status === 'UNPAID' && (
                             <button
                               className="btn btn-sm"
-                              style={{ background: '#f0fdf4', color: '#16a34a', border: '1px solid #16a34a', fontSize: 'var(--text-xs)' }}
+                              style={{ background: '#f0fdf4', color: '#16a34a', border: '1px solid #16a34a', padding: '8px 12px', fontSize: 'var(--text-xs)' }}
                               onClick={() => { setSettleConfirm(tx); setSettleMethod('CASH'); }}
                             >
-                              <DollarSign size={14} /> Lunasi
+                              <DollarSign size={14} style={{ marginRight: '4px' }}/> Lunasi
                             </button>
                           )}
                           {tx.status !== 'VOIDED' && (
                             <button
                               className="btn btn-sm"
-                              style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #dc2626', fontSize: 'var(--text-xs)' }}
+                              style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #dc2626', padding: '8px 12px', fontSize: 'var(--text-xs)' }}
                               onClick={() => { setVoidConfirm(tx); setVoidReason(''); }}
                             >
-                              <XCircle size={14} /> Batalkan
+                              <XCircle size={14} style={{ marginRight: '4px' }}/> Batalkan
                             </button>
                           )}
                         </div>
