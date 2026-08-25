@@ -38,11 +38,17 @@ export async function GET(request: NextRequest) {
       dateFilter = { createdAt: { gte: start, lte: end } };
     }
 
+    let whereFilter: any = {
+      status: { in: ['COMPLETED', 'VOIDED', 'UNPAID'] },
+      ...dateFilter,
+    };
+
+    if (userRole === 'CASHIER') {
+      whereFilter.userId = session.user.id;
+    }
+
     const transactions = await prisma.transaction.findMany({
-      where: {
-        status: { in: ['COMPLETED', 'VOIDED', 'UNPAID'] },
-        ...dateFilter,
-      },
+      where: whereFilter,
       include: {
         user: { select: { name: true } },
         items: {

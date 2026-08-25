@@ -27,11 +27,17 @@ export async function GET(request: NextRequest) {
     const { start } = getWibRangeFromDateString(startDate);
     const { end } = getWibRangeFromDateString(endDate);
 
+    const whereFilter: any = {
+      status: { in: ['COMPLETED', 'VOIDED', 'UNPAID'] },
+      createdAt: { gte: start, lte: end },
+    };
+
+    if (userRole === 'CASHIER') {
+      whereFilter.userId = session.user.id;
+    }
+
     const transactions = await prisma.transaction.findMany({
-      where: {
-        status: { in: ['COMPLETED', 'VOIDED', 'UNPAID'] },
-        createdAt: { gte: start, lte: end },
-      },
+      where: whereFilter,
       include: {
         user: { select: { name: true } },
         items: {

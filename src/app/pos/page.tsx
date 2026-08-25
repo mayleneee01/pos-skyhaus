@@ -456,7 +456,7 @@ export default function POSPage() {
               className={`product-card ${product.stock <= 0 ? 'out-of-stock' : ''}`}
               onClick={() => addToCart(product)}
             >
-              <div className="product-card-icon" style={{ width: '100%', height: '80px', background: 'transparent', padding: '4px' }}>
+              <div className="product-card-icon" style={{ width: '100%', height: '64px', background: 'transparent', padding: '4px' }}>
                 <img src={product.image || "/logo-sky-haus.png"} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               </div>
               <span className="product-card-name">{product.name}</span>
