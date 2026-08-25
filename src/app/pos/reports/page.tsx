@@ -394,7 +394,7 @@ export default function ReportsPage() {
                       <td style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)' }}>{tx.invoiceNo}</td>
                       <td style={{ fontSize: 'var(--text-xs)' }}>{formatDateTime(tx.createdAt)}</td>
                       <td>{tx.user.name}</td>
-                      <td>{tx.items.length} item</td>
+                      <td>{tx.items.reduce((sum: number, item: any) => sum + item.quantity, 0)} item</td>
                       <td style={{ fontWeight: 700, textDecoration: tx.status === 'VOIDED' ? 'line-through' : 'none', opacity: tx.status === 'VOIDED' ? 0.5 : 1 }}>{formatRupiah(tx.grandTotal)}</td>
                       <td>
                         <span className="badge badge-primary">{tx.paymentMethod}</span>

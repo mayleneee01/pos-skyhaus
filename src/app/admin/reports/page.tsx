@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { formatRupiah, formatDateTime } from '@/lib/utils';
-import { Table, FileText, DollarSign, BarChart, Banknote, Building, Smartphone, Eye, CreditCard, XCircle, AlertTriangle, Clock } from 'lucide-react';
+import { Table, FileText, DollarSign, BarChart, Banknote, Building, Smartphone, Eye, CreditCard, XCircle, AlertTriangle, Clock, Users } from 'lucide-react';
 import type { ReportSummary, TransactionWithDetails } from '@/types';
 
 export default function ReportsPage() {
@@ -315,10 +315,37 @@ export default function ReportsPage() {
                         {edcName}
                       </p>
                       <p style={{ fontSize: 'var(--text-lg)', fontWeight: 800, color: 'var(--color-primary-light)' }}>
-                        {formatRupiah(data.amount)}
+                        {formatRupiah((data as { amount: number }).amount)}
                       </p>
                       <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
-                        {data.count} transaksi
+                        {(data as { count: number }).count} transaksi
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Cashier Breakdown */}
+          {report.cashierBreakdown && Object.keys(report.cashierBreakdown).length > 0 && (
+            <div className="card" style={{ marginBottom: 'var(--space-xl)' }}>
+              <div className="card-header">
+                <h3 style={{ fontSize: 'var(--text-md)', fontWeight: 700 }}>Pendapatan per Kasir</h3>
+              </div>
+              <div className="card-body">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-md)' }}>
+                  {Object.entries(report.cashierBreakdown).map(([cashierName, data], idx) => (
+                    <div key={idx} style={{ padding: 'var(--space-md)', background: 'var(--color-bg-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
+                      <p style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '8px' }}>
+                        <Users size={14} style={{ display: 'inline', marginRight: '6px', color: 'var(--color-info)' }}/>
+                        {cashierName}
+                      </p>
+                      <p style={{ fontSize: 'var(--text-lg)', fontWeight: 800, color: 'var(--color-info)' }}>
+                        {formatRupiah((data as { amount: number }).amount)}
+                      </p>
+                      <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+                        {(data as { count: number }).count} transaksi
                       </p>
                     </div>
                   ))}
@@ -388,7 +415,7 @@ export default function ReportsPage() {
                       <td style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)' }}>{tx.invoiceNo}</td>
                       <td style={{ fontSize: 'var(--text-xs)' }}>{formatDateTime(tx.createdAt)}</td>
                       <td>{tx.user.name}</td>
-                      <td>{tx.items.length} item</td>
+                      <td>{tx.items.reduce((sum: number, item: any) => sum + item.quantity, 0)} item</td>
                       <td style={{ fontWeight: 700, textDecoration: tx.status === 'VOIDED' ? 'line-through' : 'none', opacity: tx.status === 'VOIDED' ? 0.5 : 1 }}>{formatRupiah(tx.grandTotal)}</td>
                       <td>
                         <span className="badge badge-primary">{tx.paymentMethod}</span>

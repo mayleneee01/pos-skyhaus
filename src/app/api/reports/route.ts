@@ -88,6 +88,15 @@ export async function GET(request: NextRequest) {
         return acc;
       }, {} as Record<string, { amount: number, count: number }>);
 
+    const cashierBreakdown = completedTx
+      .reduce((acc, t) => {
+        const cashierName = t.user?.name || 'Unknown Kasir';
+        if (!acc[cashierName]) acc[cashierName] = { amount: 0, count: 0 };
+        acc[cashierName].amount += t.grandTotal;
+        acc[cashierName].count += 1;
+        return acc;
+      }, {} as Record<string, { amount: number, count: number }>);
+
     return NextResponse.json({
       success: true,
       data: {
@@ -96,6 +105,7 @@ export async function GET(request: NextRequest) {
         avgTransaction,
         paymentBreakdown,
         edcBreakdown,
+        cashierBreakdown,
         transactions,
       },
     });

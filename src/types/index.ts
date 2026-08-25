@@ -99,6 +99,7 @@ export interface ReportSummary {
     QRIS_EDC: { amount: number; count: number };
   };
   edcBreakdown: Record<string, { amount: number; count: number }>;
+  cashierBreakdown?: Record<string, { amount: number; count: number }>;
   transactions: TransactionWithDetails[];
 }
 
