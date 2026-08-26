@@ -475,7 +475,12 @@ export default function POSPage() {
               className={`product-card ${product.stock <= 0 ? 'out-of-stock' : ''}`}
               onClick={() => addToCart(product)}
             >
-              <div className="product-card-icon">
+              <div className="product-card-icon" style={{ position: 'relative' }}>
+                {product.isFavorite && (
+                  <div style={{ position: 'absolute', top: '8px', right: '8px', color: '#fbbf24', filter: 'drop-shadow(0px 1px 2px rgba(0,0,0,0.3))' }}>
+                    <Star size={16} fill="currentColor" />
+                  </div>
+                )}
                 <img src={product.image || "/logo-sky-haus.png"} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               </div>
               <div className="product-card-content">
