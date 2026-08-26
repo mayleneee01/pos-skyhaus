@@ -76,7 +76,7 @@ export default function POSPage() {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch('/api/categories');
+      const res = await fetch('/api/categories', { cache: 'no-store' });
       const data = await res.json();
       if (data.success) setCategories(data.data);
     } catch (error) {
