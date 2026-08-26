@@ -636,14 +636,14 @@ img {
    ============================================ */
 .pos-layout {
   display: flex;
-  min-height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 .pos-products {
   flex: 1;
   padding: var(--space-xl);
   overflow-y: auto;
-  max-height: 100vh;
 }
 
 .pos-cart {
@@ -652,9 +652,7 @@ img {
   border-left: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
-  max-height: 100vh;
-  position: sticky;
-  top: 0;
+  height: 100dvh;
 }
 
 /* ============================================
@@ -1397,8 +1395,9 @@ img {
   }
   .pos-cart {
     width: 100%;
-    max-height: none;
-    position: static;
+    height: 45vh; /* Take up bottom part of screen on mobile */
+    border-left: none;
+    border-top: 1px solid var(--color-border);
   }
   .product-grid {
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
