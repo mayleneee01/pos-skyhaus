@@ -15,15 +15,14 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { name } = body;
-
-    if (!name) {
-      return NextResponse.json({ success: false, error: 'Nama kategori wajib diisi' }, { status: 400 });
-    }
+    const { name, order } = body;
 
     const category = await prisma.category.update({
       where: { id },
-      data: { name },
+      data: {
+        ...(name !== undefined && { name: name.trim() }),
+        ...(order !== undefined && { order: parseInt(order) || 0 }),
+      },
       include: { _count: { select: { products: true } } },
     });
 

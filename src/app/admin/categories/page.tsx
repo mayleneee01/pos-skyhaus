@@ -6,6 +6,7 @@ import { Plus, Tag, Edit, Trash2 } from 'lucide-react';
 interface Category {
   id: string;
   name: string;
+  order: number;
   _count: { products: number };
 }
 
@@ -15,6 +16,7 @@ export default function CategoriesPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [formName, setFormName] = useState('');
+  const [formOrder, setFormOrder] = useState('');
   const [saving, setSaving] = useState(false);
 
   const fetchCategories = async () => {
@@ -36,12 +38,14 @@ export default function CategoriesPage() {
   const openAddModal = () => {
     setEditingCategory(null);
     setFormName('');
+    setFormOrder('0');
     setShowModal(true);
   };
 
   const openEditModal = (category: Category) => {
     setEditingCategory(category);
     setFormName(category.name);
+    setFormOrder(category.order.toString());
     setShowModal(true);
   };
 
@@ -59,7 +63,7 @@ export default function CategoriesPage() {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: formName.trim() }),
+        body: JSON.stringify({ name: formName.trim(), order: parseInt(formOrder) || 0 }),
       });
 
       const data = await res.json();
@@ -115,6 +119,7 @@ export default function CategoriesPage() {
             <thead>
               <tr>
                 <th>Nama Kategori</th>
+                <th>Urutan</th>
                 <th>Jumlah Produk</th>
                 <th>Aksi</th>
               </tr>
@@ -124,6 +129,9 @@ export default function CategoriesPage() {
                 <tr key={category.id}>
                   <td style={{ fontWeight: 600, fontSize: 'var(--text-md)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Tag size={18} className="text-primary" /> {category.name}
+                  </td>
+                  <td>
+                    <span className="badge badge-secondary">{category.order}</span>
                   </td>
                   <td>
                     <span className="badge badge-info">{category._count.products} produk</span>
@@ -142,7 +150,7 @@ export default function CategoriesPage() {
               ))}
               {categories.length === 0 && (
                 <tr>
-                  <td colSpan={3} style={{ textAlign: 'center', padding: 'var(--space-2xl)', color: 'var(--color-text-muted)' }}>
+                  <td colSpan={4} style={{ textAlign: 'center', padding: 'var(--space-2xl)', color: 'var(--color-text-muted)' }}>
                     Belum ada kategori
                   </td>
                 </tr>
@@ -173,6 +181,20 @@ export default function CategoriesPage() {
                   autoFocus
                   onKeyDown={e => e.key === 'Enter' && handleSave()}
                 />
+              </div>
+              <div className="form-group" style={{ marginTop: '16px' }}>
+                <label className="form-label">Urutan Tampil (Angka)</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  value={formOrder}
+                  onChange={e => setFormOrder(e.target.value)}
+                  placeholder="0, 1, 2, 3..."
+                  onKeyDown={e => e.key === 'Enter' && handleSave()}
+                />
+                <small style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-xs)', marginTop: '4px', display: 'block' }}>
+                  Kategori dengan urutan paling kecil akan tampil paling depan.
+                </small>
               </div>
             </div>
             <div className="modal-footer">

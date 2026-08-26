@@ -14,7 +14,10 @@ export async function GET() {
       include: {
         _count: { select: { products: true } },
       },
-      orderBy: { name: 'asc' },
+      orderBy: [
+        { order: 'asc' },
+        { name: 'asc' }
+      ],
     });
 
     return NextResponse.json({ success: true, data: categories });
@@ -33,7 +36,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name } = body;
+    const { name, order } = body;
 
     if (!name) {
       return NextResponse.json({ success: false, error: 'Nama kategori wajib diisi' }, { status: 400 });
@@ -45,7 +48,10 @@ export async function POST(request: NextRequest) {
     }
 
     const category = await prisma.category.create({
-      data: { name },
+      data: { 
+        name,
+        order: parseInt(order) || 0
+      },
       include: { _count: { select: { products: true } } },
     });
 

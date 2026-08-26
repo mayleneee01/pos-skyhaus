@@ -443,18 +443,18 @@ export default function POSPage() {
         {/* Category Tabs */}
         <div className="category-tabs">
           <button
-            className={`category-tab ${activeCategory === 'all' ? 'active' : ''}`}
-            onClick={() => setActiveCategory('all')}
-          >
-            Semua
-          </button>
-          <button
             className={`category-tab ${activeCategory === 'favorite' ? 'active' : ''}`}
             onClick={() => setActiveCategory('favorite')}
             style={{ color: activeCategory === 'favorite' ? 'var(--color-primary-light)' : 'var(--color-text-secondary)', fontWeight: activeCategory === 'favorite' ? 700 : 500 }}
           >
             <Star size={16} fill={activeCategory === 'favorite' ? 'currentColor' : 'none'} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom' }} />
             Favorit
+          </button>
+          <button
+            className={`category-tab ${activeCategory === 'all' ? 'active' : ''}`}
+            onClick={() => setActiveCategory('all')}
+          >
+            Semua
           </button>
           {categories.map(cat => (
             <button
