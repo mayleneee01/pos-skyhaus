@@ -80,6 +80,6 @@ export async function POST(request: NextRequest) {
     if (error.code === 'P2002') {
       return NextResponse.json({ success: false, error: 'Kode SKU sudah digunakan oleh produk lain' }, { status: 400 });
     }
-    return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: `Internal Server Error: ${error.message || String(error)}` }, { status: 500 });
   }
 }

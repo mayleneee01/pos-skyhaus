@@ -151,9 +151,9 @@ export default function ProductsPage() {
       } else {
         alert(data.error || 'Gagal menyimpan produk');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Save product error:', error);
-      alert('Gagal menyimpan produk');
+      alert(`Gagal menyimpan produk: ${error.message || String(error)}`);
     } finally {
       setSaving(false);
     }
