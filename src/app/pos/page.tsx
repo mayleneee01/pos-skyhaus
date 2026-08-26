@@ -59,8 +59,9 @@ export default function POSPage() {
       if (search) params.set('search', search);
       if (activeCategory !== 'all' && activeCategory !== 'favorite') params.set('categoryId', activeCategory);
       params.set('activeOnly', 'true');
+      params.set('t', new Date().getTime().toString());
 
-      const res = await fetch(`/api/products?${params}`);
+      const res = await fetch(`/api/products?${params}`, { cache: 'no-store' });
       const data = await res.json();
       if (data.success) {
         if (activeCategory === 'favorite') {
@@ -76,7 +77,7 @@ export default function POSPage() {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch('/api/categories', { cache: 'no-store' });
+      const res = await fetch(`/api/categories?t=${new Date().getTime()}`, { cache: 'no-store' });
       const data = await res.json();
       if (data.success) setCategories(data.data);
     } catch (error) {

@@ -21,7 +21,7 @@ export default function CategoriesPage() {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch('/api/categories');
+      const res = await fetch(`/api/categories?t=${new Date().getTime()}`, { cache: 'no-store' });
       const data = await res.json();
       if (data.success) setCategories(data.data);
     } catch (error) {
