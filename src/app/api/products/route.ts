@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
       },
       orderBy: [
         { isFavorite: 'desc' },
+        { category: { order: 'asc' } },
         { name: 'asc' }
       ],
     });
