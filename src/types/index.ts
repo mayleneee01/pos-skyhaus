@@ -31,6 +31,7 @@ export interface ProductWithCategory {
   lowStock: number;
   image: string | null;
   isActive: boolean;
+  isFavorite: boolean;
   categoryId: string;
   category: {
     id: string;

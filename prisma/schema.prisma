@@ -57,6 +57,7 @@ model Product {
   price      Int     // Harga dalam Rupiah (integer)
   stock      Int     @default(0)
   lowStock   Int     @default(5) // Ambang batas stok tipis
+  isFavorite Boolean @default(false)
   image      String? // URL/path gambar produk
   isActive   Boolean @default(true)
   categoryId String

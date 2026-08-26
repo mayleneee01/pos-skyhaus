@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { formatRupiah } from '@/lib/utils';
-import { History, ShoppingCart, CreditCard, Banknote, Building, Smartphone, AlertTriangle, CheckCircle, Printer, LayoutDashboard, BarChart3, XCircle, Clock, DollarSign } from 'lucide-react';
+import { History, ShoppingCart, CreditCard, Banknote, Building, Smartphone, AlertTriangle, CheckCircle, Printer, LayoutDashboard, BarChart3, XCircle, Clock, DollarSign, Star } from 'lucide-react';
 import FullscreenToggle from '@/components/FullscreenToggle';
 import { printWithRawBT } from '@/lib/rawbt';
 import type { ProductWithCategory, CartItem, StoreSettingData, CreateTransactionPayload, TransactionWithDetails } from '@/types';
@@ -55,12 +55,18 @@ export default function POSPage() {
     try {
       const params = new URLSearchParams();
       if (search) params.set('search', search);
-      if (activeCategory !== 'all') params.set('categoryId', activeCategory);
+      if (activeCategory !== 'all' && activeCategory !== 'favorite') params.set('categoryId', activeCategory);
       params.set('activeOnly', 'true');
 
       const res = await fetch(`/api/products?${params}`);
       const data = await res.json();
-      if (data.success) setProducts(data.data);
+      if (data.success) {
+        if (activeCategory === 'favorite') {
+          setProducts(data.data.filter((p: ProductWithCategory) => p.isFavorite));
+        } else {
+          setProducts(data.data);
+        }
+      }
     } catch (error) {
       console.error('Failed to fetch products:', error);
     }
@@ -424,6 +430,9 @@ export default function POSPage() {
               placeholder="Cari produk..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.currentTarget.blur();
+              }}
               style={{ paddingLeft: 40 }}
             />
           </div>
@@ -436,6 +445,14 @@ export default function POSPage() {
             onClick={() => setActiveCategory('all')}
           >
             Semua
+          </button>
+          <button
+            className={`category-tab ${activeCategory === 'favorite' ? 'active' : ''}`}
+            onClick={() => setActiveCategory('favorite')}
+            style={{ color: activeCategory === 'favorite' ? 'var(--color-primary-light)' : 'var(--color-text-secondary)', fontWeight: activeCategory === 'favorite' ? 700 : 500 }}
+          >
+            <Star size={16} fill={activeCategory === 'favorite' ? 'currentColor' : 'none'} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom' }} />
+            Favorit
           </button>
           {categories.map(cat => (
             <button
@@ -456,7 +473,7 @@ export default function POSPage() {
               className={`product-card ${product.stock <= 0 ? 'out-of-stock' : ''}`}
               onClick={() => addToCart(product)}
             >
-              <div className="product-card-icon" style={{ width: '100%', height: '64px', background: 'transparent', padding: '4px' }}>
+              <div className="product-card-icon" style={{ width: '100%', height: '48px', background: 'transparent', padding: '2px' }}>
                 <img src={product.image || "/logo-sky-haus.png"} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               </div>
               <span className="product-card-name">{product.name}</span>
@@ -596,7 +613,7 @@ export default function POSPage() {
                     <div>
                       <div className="form-group">
                         <label className="form-label">Uang Diterima</label>
-                        <input type="number" className="form-input" placeholder="Masukkan jumlah uang..." value={cashReceived} onChange={(e) => setCashReceived(e.target.value)} style={{ fontSize: 'var(--text-lg)', fontWeight: 700, textAlign: 'center', padding: '10px' }} />
+                        <input type="number" className="form-input" placeholder="Masukkan jumlah uang..." value={cashReceived} onChange={(e) => setCashReceived(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} style={{ fontSize: 'var(--text-lg)', fontWeight: 700, textAlign: 'center', padding: '10px' }} />
                       </div>
                       <div className="quick-amount-grid" style={{ marginTop: '16px', gap: '8px', gridTemplateColumns: 'repeat(3, 1fr)' }}>
                         {[grandTotal, 20000, 50000, 75000, 100000, 150000, 200000, 250000, 500000].map(amount => (
@@ -691,6 +708,7 @@ export default function POSPage() {
                       placeholder={paymentMethod === 'PAY_LATER' ? 'WAJIB: Masukkan nama pemesan...' : 'Masukkan nama pemesan...'}
                       value={customerName} 
                       onChange={(e) => setCustomerName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                       style={paymentMethod === 'PAY_LATER' && !customerName ? { borderColor: '#dc2626' } : {}}
                     />
                   </div>
@@ -940,6 +958,7 @@ export default function POSPage() {
                   placeholder="Contoh: Pelanggan ganti pesanan..."
                   value={voidReason}
                   onChange={(e) => setVoidReason(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                 />
               </div>
 

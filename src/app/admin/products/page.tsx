@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { formatRupiah } from '@/lib/utils';
-import { Plus, Edit, Trash2, Upload } from 'lucide-react';
+import { Plus, Edit, Trash2, Upload, Star } from 'lucide-react';
 import type { ProductWithCategory } from '@/types';
 
 interface Category {
@@ -175,6 +175,24 @@ export default function ProductsPage() {
     }
   };
 
+  const toggleFavorite = async (product: ProductWithCategory) => {
+    try {
+      const res = await fetch(`/api/products/${product.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isFavorite: !product.isFavorite }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchProducts();
+      } else {
+        alert(data.error || 'Gagal mengubah status favorit');
+      }
+    } catch (error) {
+      console.error('Toggle favorite error:', error);
+    }
+  };
+
   return (
     <div className="animate-fade-in">
       <div className="page-header">
@@ -228,6 +246,7 @@ export default function ProductsPage() {
                 <th>SKU</th>
                 <th>Kategori</th>
                 <th>Harga</th>
+                <th>Favorit</th>
                 <th>Stok</th>
                 <th>Status</th>
                 <th>Aksi</th>
@@ -251,6 +270,15 @@ export default function ProductsPage() {
                   </td>
                   <td><span className="badge badge-primary">{product.category.name}</span></td>
                   <td style={{ fontWeight: 600 }}>{formatRupiah(product.price)}</td>
+                  <td>
+                    <button 
+                      className={`btn btn-sm btn-icon ${product.isFavorite ? 'btn-primary' : 'btn-ghost'}`}
+                      onClick={() => toggleFavorite(product)}
+                      title={product.isFavorite ? 'Hapus dari favorit' : 'Jadikan favorit'}
+                    >
+                      <Star size={16} fill={product.isFavorite ? "currentColor" : "none"} />
+                    </button>
+                  </td>
                   <td>
                     <span className={`badge ${
                       product.stock <= 0 ? 'badge-danger' :

@@ -93,6 +93,7 @@ export default function ReportsPage() {
     if (!report?.transactions) return [];
     const sales: Record<string, { name: string, quantity: number, total: number }> = {};
     report.transactions.forEach(tx => {
+      if (tx.status === 'VOIDED') return;
       tx.items.forEach(item => {
         const key = item.productName;
         if (!sales[key]) {
