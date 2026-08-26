@@ -19,9 +19,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json({ success: false, error: 'Hanya file gambar yang diperbolehkan' }, { status: 400 });
+    if (!file.type || !file.type.startsWith('image/')) {
+      return NextResponse.json({ success: false, error: `Tipe file tidak didukung: ${file.type || 'unknown'}` }, { status: 400 });
     }
 
     // Max 1MB (karena kita akan simpan sebagai Base64 di database, lebih baik ukurannya kecil)
