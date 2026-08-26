@@ -24,24 +24,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Hanya file gambar yang diperbolehkan' }, { status: 400 });
     }
 
-    // Max 5MB
-    if (file.size > 5 * 1024 * 1024) {
-      return NextResponse.json({ success: false, error: 'Ukuran file maksimal 5MB' }, { status: 400 });
+    // Max 1MB (karena kita akan simpan sebagai Base64 di database, lebih baik ukurannya kecil)
+    if (file.size > 1 * 1024 * 1024) {
+      return NextResponse.json({ success: false, error: 'Ukuran file maksimal 1MB' }, { status: 400 });
     }
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
+    
+    // Konversi ke Base64 (Vercel Serverless tidak mendukung tulis file lokal public/uploads)
+    const base64Image = `data:${file.type};base64,${buffer.toString('base64')}`;
 
-    const ext = file.name.split('.').pop() || 'png';
-    const fileName = `qris-${Date.now()}.${ext}`;
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-
-    await mkdir(uploadDir, { recursive: true });
-    await writeFile(path.join(uploadDir, fileName), buffer);
-
-    const filePath = `/uploads/${fileName}`;
-
-    return NextResponse.json({ success: true, data: { path: filePath } });
+    return NextResponse.json({ success: true, data: { path: base64Image } });
   } catch (error) {
     console.error('POST /api/upload error:', error);
     return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
