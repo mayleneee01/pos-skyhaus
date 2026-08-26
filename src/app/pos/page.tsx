@@ -475,16 +475,18 @@ export default function POSPage() {
               className={`product-card ${product.stock <= 0 ? 'out-of-stock' : ''}`}
               onClick={() => addToCart(product)}
             >
-              <div className="product-card-icon" style={{ width: '100%', height: '48px', background: 'transparent', padding: '2px' }}>
+              <div className="product-card-icon">
                 <img src={product.image || "/logo-sky-haus.png"} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               </div>
-              <span className="product-card-name">{product.name}</span>
-              <span className="product-card-price">{formatRupiah(product.price)}</span>
-              <span className="product-card-stock">
-                {product.stock <= 0 ? 'Habis' : 
-                 product.stock <= product.lowStock ? <span style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'center' }}><AlertTriangle size={14} /> Sisa {product.stock}</span> : 
-                 `Stok: ${product.stock}`}
-              </span>
+              <div className="product-card-content">
+                <span className="product-card-name">{product.name}</span>
+                <span className="product-card-price">{formatRupiah(product.price)}</span>
+                <span className="product-card-stock">
+                  {product.stock <= 0 ? 'Habis' : 
+                   product.stock <= product.lowStock ? <span style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'center' }}><AlertTriangle size={14} /> Sisa {product.stock}</span> : 
+                   `Stok: ${product.stock}`}
+                </span>
+              </div>
             </div>
           ))}
           {products.length === 0 && (
