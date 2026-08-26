@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import { useState, useEffect, useCallback } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { formatRupiah } from '@/lib/utils';
@@ -386,24 +388,24 @@ export default function POSPage() {
             </button>
             <FullscreenToggle />
             {(session?.user as any)?.role === 'ADMIN' && (
-              <a href="/admin" className="btn btn-sm" style={{
+              <Link href="/admin" className="btn btn-sm" style={{
                 display: 'flex', alignItems: 'center', gap: '4px',
                 background: 'var(--color-primary-bg)', color: 'var(--color-primary)',
                 border: '1px solid var(--color-primary)', borderRadius: 'var(--radius-sm)',
                 fontSize: 'var(--text-xs)', fontWeight: 600, padding: '6px 10px', textDecoration: 'none',
               }}>
                 <LayoutDashboard size={14} /> Admin
-              </a>
+              </Link>
             )}
             {(session?.user as any)?.role === 'CASHIER' && (
-              <a href="/pos/reports" className="btn btn-sm" style={{
+              <Link href="/pos/reports" className="btn btn-sm" style={{
                 display: 'flex', alignItems: 'center', gap: '4px',
                 background: 'var(--color-primary-bg)', color: 'var(--color-primary)',
                 border: '1px solid var(--color-primary)', borderRadius: 'var(--radius-sm)',
                 fontSize: 'var(--text-xs)', fontWeight: 600, padding: '6px 10px', textDecoration: 'none',
               }}>
                 <BarChart3 size={14} /> Laporan
-              </a>
+              </Link>
             )}
             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>
               {session?.user?.name}

@@ -31,7 +31,10 @@ export async function GET(request: NextRequest) {
       include: {
         category: { select: { id: true, name: true } },
       },
-      orderBy: { name: 'asc' },
+      orderBy: [
+        { isFavorite: 'desc' },
+        { name: 'asc' }
+      ],
     });
 
     return NextResponse.json({ success: true, data: products });
