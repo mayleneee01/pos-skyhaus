@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useTransition } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { formatRupiah } from '@/lib/utils';
 import { History, ShoppingCart, CreditCard, Banknote, Building, Smartphone, AlertTriangle, CheckCircle, Printer, LayoutDashboard, BarChart3, XCircle, Clock, DollarSign, Star } from 'lucide-react';
@@ -11,6 +11,7 @@ import { printWithRawBT } from '@/lib/rawbt';
 import type { ProductWithCategory, CartItem, StoreSettingData, CreateTransactionPayload, TransactionWithDetails } from '@/types';
 
 export default function POSPage() {
+  const [isPending, startTransition] = useTransition();
   const [session, setSession] = useState<any>(null);
   const [allProducts, setAllProducts] = useState<ProductWithCategory[]>([]);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
@@ -69,19 +70,22 @@ export default function POSPage() {
     }
   }, []);
 
+  const deferredSearch = React.useDeferredValue(search);
+  const deferredCategory = React.useDeferredValue(activeCategory);
+
   const filteredProducts = useMemo(() => {
     let result = allProducts;
     
     // Filter by Category
-    if (activeCategory === 'favorite') {
+    if (deferredCategory === 'favorite') {
       result = result.filter(p => p.isFavorite);
-    } else if (activeCategory !== 'all') {
-      result = result.filter(p => p.categoryId === activeCategory);
+    } else if (deferredCategory !== 'all') {
+      result = result.filter(p => p.categoryId === deferredCategory);
     }
     
     // Filter by Search
-    if (search) {
-      const lowerSearch = search.toLowerCase();
+    if (deferredSearch) {
+      const lowerSearch = deferredSearch.toLowerCase();
       result = result.filter(p => 
         p.name.toLowerCase().includes(lowerSearch) || 
         p.sku?.toLowerCase().includes(lowerSearch)
@@ -89,7 +93,7 @@ export default function POSPage() {
     }
     
     return result;
-  }, [allProducts, activeCategory, search]);
+  }, [allProducts, deferredCategory, deferredSearch]);
 
   const fetchCategories = async () => {
     try {
@@ -455,7 +459,7 @@ export default function POSPage() {
         <div className="category-tabs">
           <button
             className={`category-tab ${activeCategory === 'favorite' ? 'active' : ''}`}
-            onClick={() => setActiveCategory('favorite')}
+            onClick={() => startTransition(() => setActiveCategory('favorite'))}
             style={{ color: activeCategory === 'favorite' ? 'var(--color-primary-light)' : 'var(--color-text-secondary)', fontWeight: activeCategory === 'favorite' ? 700 : 500 }}
           >
             <Star size={16} fill={activeCategory === 'favorite' ? 'currentColor' : 'none'} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom' }} />
@@ -463,7 +467,7 @@ export default function POSPage() {
           </button>
           <button
             className={`category-tab ${activeCategory === 'all' ? 'active' : ''}`}
-            onClick={() => setActiveCategory('all')}
+            onClick={() => startTransition(() => setActiveCategory('all'))}
           >
             Semua
           </button>
@@ -471,7 +475,7 @@ export default function POSPage() {
             <button
               key={cat.id}
               className={`category-tab ${activeCategory === cat.id ? 'active' : ''}`}
-              onClick={() => setActiveCategory(cat.id)}
+              onClick={() => startTransition(() => setActiveCategory(cat.id))}
             >
               {cat.name}
             </button>
@@ -492,7 +496,7 @@ export default function POSPage() {
                     <Star size={16} fill="currentColor" />
                   </div>
                 )}
-                <img src={product.image || "/logo-sky-haus.png"} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                <img src={product.image || "/logo-sky-haus.png"} alt={product.name} loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               </div>
               <div className="product-card-content">
                 <span className="product-card-name">{product.name}</span>
