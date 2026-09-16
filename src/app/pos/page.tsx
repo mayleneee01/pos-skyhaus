@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { formatRupiah } from '@/lib/utils';
 import { History, ShoppingCart, CreditCard, Banknote, Building, Smartphone, AlertTriangle, CheckCircle, Printer, LayoutDashboard, BarChart3, XCircle, Clock, DollarSign, Star } from 'lucide-react';
@@ -12,7 +12,7 @@ import type { ProductWithCategory, CartItem, StoreSettingData, CreateTransaction
 
 export default function POSPage() {
   const [session, setSession] = useState<any>(null);
-  const [products, setProducts] = useState<ProductWithCategory[]>([]);
+  const [allProducts, setAllProducts] = useState<ProductWithCategory[]>([]);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [search, setSearch] = useState('');
@@ -20,8 +20,8 @@ export default function POSPage() {
   const [settings, setSettings] = useState<StoreSettingData | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'TRANSFER' | 'QRIS' | 'QRIS_EDC' | 'PAY_LATER'>('CASH');
-  const [payLaterMethod, setPayLaterMethod] = useState<'CASH' | 'TRANSFER' | 'QRIS'>('CASH');
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'TRANSFER' | 'QRIS' | 'QRIS_BUKUPAY' | 'QRIS_EDC' | 'PAY_LATER'>('CASH');
+  const [payLaterMethod, setPayLaterMethod] = useState<'CASH' | 'TRANSFER' | 'QRIS' | 'QRIS_BUKUPAY' | 'QRIS_EDC'>('CASH');
   const [cashReceived, setCashReceived] = useState('');
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [customerName, setCustomerName] = useState('');
@@ -42,7 +42,7 @@ export default function POSPage() {
 
   // Settle (lunasi) transaction states
   const [settleConfirm, setSettleConfirm] = useState<TransactionWithDetails | null>(null);
-  const [settleMethod, setSettleMethod] = useState<'CASH' | 'TRANSFER' | 'QRIS'>('CASH');
+  const [settleMethod, setSettleMethod] = useState<'CASH' | 'TRANSFER' | 'QRIS' | 'QRIS_BUKUPAY' | 'QRIS_EDC'>('CASH');
   const [settleLoading, setSettleLoading] = useState(false);
 
   // Calculate totals
@@ -56,24 +56,40 @@ export default function POSPage() {
   const fetchProducts = useCallback(async () => {
     try {
       const params = new URLSearchParams();
-      if (search) params.set('search', search);
-      if (activeCategory !== 'all' && activeCategory !== 'favorite') params.set('categoryId', activeCategory);
       params.set('activeOnly', 'true');
       params.set('t', new Date().getTime().toString());
 
       const res = await fetch(`/api/products?${params}`, { cache: 'no-store' });
       const data = await res.json();
       if (data.success) {
-        if (activeCategory === 'favorite') {
-          setProducts(data.data.filter((p: ProductWithCategory) => p.isFavorite));
-        } else {
-          setProducts(data.data);
-        }
+        setAllProducts(data.data);
       }
     } catch (error) {
       console.error('Failed to fetch products:', error);
     }
-  }, [search, activeCategory]);
+  }, []);
+
+  const filteredProducts = useMemo(() => {
+    let result = allProducts;
+    
+    // Filter by Category
+    if (activeCategory === 'favorite') {
+      result = result.filter(p => p.isFavorite);
+    } else if (activeCategory !== 'all') {
+      result = result.filter(p => p.categoryId === activeCategory);
+    }
+    
+    // Filter by Search
+    if (search) {
+      const lowerSearch = search.toLowerCase();
+      result = result.filter(p => 
+        p.name.toLowerCase().includes(lowerSearch) || 
+        p.sku?.toLowerCase().includes(lowerSearch)
+      );
+    }
+    
+    return result;
+  }, [allProducts, activeCategory, search]);
 
   const fetchCategories = async () => {
     try {
@@ -319,13 +335,7 @@ export default function POSPage() {
       };
 
       if (paymentMethod === 'QRIS_EDC') {
-        if (!selectedEdcId) {
-          alert('Silakan pilih Mesin EDC terlebih dahulu');
-          setPaymentLoading(false);
-          return;
-        }
-        // For standalone EDC, we just fall through to normal processing
-        // and record the selectedEdcId in the transaction.
+        // EDC is now manual, we just proceed.
       }
 
       // Normal processing for Cash/Transfer/QRIS/Standalone EDC
@@ -470,7 +480,7 @@ export default function POSPage() {
 
         {/* Product Grid */}
         <div className="product-grid">
-          {products.map(product => (
+          {filteredProducts.map((product: ProductWithCategory) => (
             <div
               key={product.id}
               className={`product-card ${product.stock <= 0 ? 'out-of-stock' : ''}`}
@@ -495,9 +505,9 @@ export default function POSPage() {
               </div>
             </div>
           ))}
-          {products.length === 0 && (
-            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '48px', color: 'var(--color-text-muted)' }}>
-              <p>Tidak ada produk ditemukan</p>
+          {filteredProducts.length === 0 && (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: 'var(--space-2xl)', color: 'var(--color-text-muted)' }}>
+              Tidak ada produk ditemukan
             </div>
           )}
         </div>
@@ -615,7 +625,8 @@ export default function POSPage() {
                     <button className={`payment-tab ${paymentMethod === 'CASH' ? 'active' : ''}`} onClick={() => setPaymentMethod('CASH')}><Banknote size={16} /> Tunai</button>
                     <button className={`payment-tab ${paymentMethod === 'TRANSFER' ? 'active' : ''}`} onClick={() => setPaymentMethod('TRANSFER')}><Building size={16} /> Transfer</button>
                     <button className={`payment-tab ${paymentMethod === 'QRIS' ? 'active' : ''}`} onClick={() => setPaymentMethod('QRIS')}><Smartphone size={16} /> QRIS Standar</button>
-                    <button className={`payment-tab ${paymentMethod === 'QRIS_EDC' ? 'active' : ''}`} onClick={() => setPaymentMethod('QRIS_EDC')}><Smartphone size={16} /> QRIS EDC</button>
+                    <button className={`payment-tab ${paymentMethod === 'QRIS_BUKUPAY' ? 'active' : ''}`} onClick={() => setPaymentMethod('QRIS_BUKUPAY')}><Smartphone size={16} /> QRIS Bukupay</button>
+                    <button className={`payment-tab ${paymentMethod === 'QRIS_EDC' ? 'active' : ''}`} onClick={() => setPaymentMethod('QRIS_EDC')}><Smartphone size={16} /> EDC Manual</button>
                     <button className={`payment-tab ${paymentMethod === 'PAY_LATER' ? 'active' : ''}`} onClick={() => setPaymentMethod('PAY_LATER')} style={paymentMethod === 'PAY_LATER' ? { background: '#f59e0b', color: '#fff', borderColor: '#f59e0b' } : {}}><Clock size={16} /> Bayar Nanti</button>
                   </div>
 
@@ -658,31 +669,16 @@ export default function POSPage() {
                     </div>
                   )}
 
+                  {paymentMethod === 'QRIS_BUKUPAY' && (
+                    <div style={{ textAlign: 'center', padding: 'var(--space-xl) 0', color: 'var(--color-text-muted)' }}>
+                      <p>Pastikan pembayaran melalui QRIS Bukupay telah berhasil masuk sebelum menekan tombol Proses.</p>
+                    </div>
+                  )}
+
                   {paymentMethod === 'QRIS_EDC' && (
                     <div style={{ padding: 'var(--space-md) 0' }}>
-                      <div className="form-group">
-                        <label className="form-label">Pilih Mesin EDC</label>
-                        {edcTerminals.length === 0 ? (
-                          <div style={{ color: 'var(--color-danger)', fontSize: 'var(--text-sm)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <AlertTriangle size={16} /> Belum ada mesin EDC yang aktif. Hubungi Admin.
-                          </div>
-                        ) : (
-                          <select 
-                            className="form-input" 
-                            value={selectedEdcId} 
-                            onChange={e => setSelectedEdcId(e.target.value)}
-                            style={{ padding: '12px' }}
-                          >
-                            {edcTerminals.map(t => (
-                              <option key={t.id} value={t.id}>
-                                {t.name} ({t.bankName})
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                      </div>
-                      <div style={{ textAlign: 'center', marginTop: 'var(--space-lg)', color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>
-                        <p>Ketik nominal pada mesin EDC secara manual. Pastikan pelanggan sudah scan QRIS di layar EDC dan saldo masuk sebelum menekan tombol Proses.</p>
+                      <div style={{ textAlign: 'center', marginTop: 'var(--space-lg)', color: 'var(--color-warning)', fontSize: 'var(--text-sm)' }}>
+                        <p>Ketik nominal pada mesin EDC secara manual. Pastikan struk dari mesin EDC telah keluar dan transaksi berhasil sebelum menekan tombol Proses di sini.</p>
                       </div>
                     </div>
                   )}
@@ -703,6 +699,8 @@ export default function POSPage() {
                           <button className={`payment-tab ${payLaterMethod === 'CASH' ? 'active' : ''}`} onClick={() => setPayLaterMethod('CASH')}><Banknote size={14} /> Tunai</button>
                           <button className={`payment-tab ${payLaterMethod === 'TRANSFER' ? 'active' : ''}`} onClick={() => setPayLaterMethod('TRANSFER')}><Building size={14} /> Transfer</button>
                           <button className={`payment-tab ${payLaterMethod === 'QRIS' ? 'active' : ''}`} onClick={() => setPayLaterMethod('QRIS')}><Smartphone size={14} /> QRIS</button>
+                          <button className={`payment-tab ${payLaterMethod === 'QRIS_BUKUPAY' ? 'active' : ''}`} onClick={() => setPayLaterMethod('QRIS_BUKUPAY')}><Smartphone size={14} /> Bukupay</button>
+                          <button className={`payment-tab ${payLaterMethod === 'QRIS_EDC' ? 'active' : ''}`} onClick={() => setPayLaterMethod('QRIS_EDC')}><Smartphone size={14} /> EDC</button>
                         </div>
                       </div>
                     </div>
@@ -1038,6 +1036,8 @@ export default function POSPage() {
                   <button className={`payment-tab ${settleMethod === 'CASH' ? 'active' : ''}`} onClick={() => setSettleMethod('CASH')}><Banknote size={14} /> Tunai</button>
                   <button className={`payment-tab ${settleMethod === 'TRANSFER' ? 'active' : ''}`} onClick={() => setSettleMethod('TRANSFER')}><Building size={14} /> Transfer</button>
                   <button className={`payment-tab ${settleMethod === 'QRIS' ? 'active' : ''}`} onClick={() => setSettleMethod('QRIS')}><Smartphone size={14} /> QRIS</button>
+                  <button className={`payment-tab ${settleMethod === 'QRIS_BUKUPAY' ? 'active' : ''}`} onClick={() => setSettleMethod('QRIS_BUKUPAY')}><Smartphone size={14} /> Bukupay</button>
+                  <button className={`payment-tab ${settleMethod === 'QRIS_EDC' ? 'active' : ''}`} onClick={() => setSettleMethod('QRIS_EDC')}><Smartphone size={14} /> EDC</button>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 'var(--space-sm)', marginTop: 'var(--space-lg)' }}>

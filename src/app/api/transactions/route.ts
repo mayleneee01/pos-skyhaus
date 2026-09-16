@@ -187,7 +187,7 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ success: false, error: 'Hanya transaksi UNPAID yang bisa dilunasi' }, { status: 400 });
       }
 
-      if (!settleMethod || !['CASH', 'TRANSFER', 'QRIS'].includes(settleMethod)) {
+      if (!settleMethod || !['CASH', 'TRANSFER', 'QRIS', 'QRIS_BUKUPAY', 'QRIS_EDC'].includes(settleMethod)) {
         return NextResponse.json({ success: false, error: 'Metode pembayaran pelunasan tidak valid' }, { status: 400 });
       }
 

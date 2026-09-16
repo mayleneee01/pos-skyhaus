@@ -109,6 +109,7 @@ enum PaymentMethod {
   CASH
   TRANSFER
   QRIS
+  QRIS_BUKUPAY
   QRIS_EDC
   DEBIT
   CREDIT
