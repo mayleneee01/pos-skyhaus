@@ -12,26 +12,24 @@ export default function FullscreenToggle() {
     const isFull = !!document.fullscreenElement;
     setIsFullscreen(isFull);
 
-    // Jika keluar dari fullscreen secara tidak sengaja (karena popup RawBT)
+    // Jika keluar dari fullscreen secara tidak sengaja (layar mati, pindah app, dll)
     if (!isFull && !intentionalExit.current) {
-      const restoreFullscreen = async () => {
+      const restoreFullscreen = () => {
         try {
           if (!document.fullscreenElement) {
-            await document.documentElement.requestFullscreen();
+            document.documentElement.requestFullscreen().catch(() => {});
           }
-        } catch (err) {
-          // Abaikan error jika gagal restore
         } finally {
           document.removeEventListener('click', restoreFullscreen);
-          document.removeEventListener('touchstart', restoreFullscreen);
+          document.removeEventListener('touchend', restoreFullscreen);
         }
       };
       
       // Pasang listener untuk sentuhan/klik pertama setelah kembali ke aplikasi
       setTimeout(() => {
         document.addEventListener('click', restoreFullscreen);
-        document.addEventListener('touchstart', restoreFullscreen, { passive: true });
-      }, 500);
+        document.addEventListener('touchend', restoreFullscreen);
+      }, 300);
     }
     
     // Reset flag setelah event selesai diproses
