@@ -86,13 +86,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Keranjang kosong' }, { status: 400 });
     }
 
-    if (!payLater && (!paymentMethod || !['CASH', 'TRANSFER', 'QRIS'].includes(paymentMethod))) {
+    if (!payLater && (!paymentMethod || !['CASH', 'TRANSFER', 'QRIS', 'QRIS_BUKUPAY', 'QRIS_EDC'].includes(paymentMethod))) {
       return NextResponse.json({ success: false, error: 'Metode pembayaran tidak valid' }, { status: 400 });
     }
 
-    // Validate stock availability
+    // Validate stock availability efficiently
+    const productIds = items.map((i: any) => i.productId);
+    const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
+    const productMap = new Map(products.map(p => [p.id, p]));
+
     for (const item of items) {
-      const product = await prisma.product.findUnique({ where: { id: item.productId } });
+      const product = productMap.get(item.productId);
       if (!product) {
         return NextResponse.json({ success: false, error: `Produk "${item.name || item.productName}" tidak ditemukan` }, { status: 404 });
       }
@@ -141,13 +145,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Reduce stock for each item (separate queries — PgBouncer safe)
-    for (const item of items) {
-      await prisma.product.update({
+    // Reduce stock concurrently to speed up response time
+    await Promise.all(items.map((item: any) => 
+      prisma.product.update({
         where: { id: item.productId },
         data: { stock: { decrement: item.quantity } },
-      });
-    }
+      })
+    ));
 
     return NextResponse.json({ success: true, data: newTransaction }, { status: 201 });
   } catch (error: any) {
